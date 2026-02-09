@@ -1,0 +1,34 @@
+body {
+    background-color: white;
+    margin: 0;
+    padding: 0;
+}
+
+.center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game {
+    background-color: black;
+}
+
+#block {
+    background: none;
+}
+
+.game-canvas {
+    position: absolute;
+    aspect-ratio: 4/3;
+}
+
+.game-container {
+    width: 640px;
+    height: 480px;
+}
+
+.game-head {
+    width: 100vw;
+    height: 100vh;
+}
