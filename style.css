@@ -11,11 +11,15 @@ body {
 }
 
 #game {
-    background-color: black;
+    background: none;
 }
 
 #block {
     background: none;
+}
+
+#stale {
+    background-color: transparent;
 }
 
 .game-canvas {
