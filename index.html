@@ -4,14 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tetris</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
 </head>
 <body>
     <div class="center game-head">
-        <div class="center game-container">
-            <canvas id="stale" class="game-canvas" width="640" height="480"></canvas>
-            <canvas id="block" class="game-canvas" width="640" height="480"></canvas>
-            <canvas id="game" class="game-canvas" width="640" height="480"></canvas>
+        <canvas id="stale" class="game-canvas" width="320" height="640"></canvas>
+        <canvas id="block" class="game-canvas" width="320" height="640"></canvas>
+        <canvas id="game" class="game-canvas" width="320" height="640"></canvas>
+        <div id="pause-ind" class="center game-canvas" style="width: 100vw; height: 100vh;">
+            <div id="pause-text">Paused...</div>
+            <div id="pause-btns" class="center">
+                <button id="resume">Resume</button>
+                <button id="restart">Restart</button>
+            </div>
         </div>
     </div>
     <script type="module" src="index.js"></script>

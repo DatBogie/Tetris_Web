@@ -1,7 +1,40 @@
+:root {
+    --olc: hsla(0, 0%, 100%, 0.25);
+    --rosewater: #f4dbd6;
+    --flamingo: #f0c6c6;
+    --pink: #f5bde6;
+    --mauve: #c6a0f6;
+    --red: #ed8796;
+    --maroon: #ee99a0;
+    --peach: #f5a97f;
+    --yellow: #eed49f;
+    --green: #a6da95;
+    --teal: #8bd5ca;
+    --sky: #91d7e3;
+    --sapphire: #7dc4e4;
+    --blue: #8aadf4;
+    --lavender: #b7bdf8;
+    --text: #cad3f5;
+    --subtext1: #b8c0e0;
+    --subtext0: #a5adcb;
+    --overlay2: #939ab7;
+    --overlay1: #8087a2;
+    --overlay0: #6e738d;
+    --surface2: #5b6078;
+    --surface1: #494d64;
+    --surface0: #363a4f;
+    --base: #24273a;
+    --mantle: #1e2030;
+    --crust: #181926;
+    --accent: var(--lavender);
+}
+
 body {
-    background-color: white;
+    background-color: var(--base);
     margin: 0;
     padding: 0;
+    overflow-y: hidden;
+    font-family: "Nunito", serif;
 }
 
 .center {
@@ -19,20 +52,86 @@ body {
 }
 
 #stale {
-    background-color: transparent;
+    background-color: var(--mantle);
 }
 
 .game-canvas {
     position: absolute;
-    aspect-ratio: 4/3;
+    aspect-ratio: 320/640;
+    transition: filter 200ms ease;
+    /* aspect-ratio: 4/3; */
 }
 
-.game-container {
-    width: 640px;
-    height: 480px;
+.game-canvas.paused {
+    filter: blur(16px) saturate(120%) brightness(80%);
 }
 
 .game-head {
     width: 100vw;
     height: 100vh;
+}
+
+#pause-ind {
+    pointer-events: none;
+    transition: transform 200ms cubic-bezier(0.6, -0.28, 0.735, 0.045), opacity 200ms ease;
+    transform: translateY(25px);
+    opacity: 0;
+    /* backdrop-filter: blur(16px) saturate(120%); */
+    background-color: transparent;
+    flex-direction: column;
+    gap: 24px;
+}
+
+#pause-ind.paused {
+    pointer-events: all;
+    transition: transform 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: none;
+    opacity: 100%;
+    filter: none;
+}
+
+#pause-ind > div {
+    text-align: center;
+    color: white;
+    font-size: 2.5rem;
+    backdrop-filter: blur(32px) grayscale(100%);
+    outline: 1px solid var(--olc);
+    padding-top: 10px;
+    padding-bottom: 10px;
+    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 16px;
+}
+
+#pause-btns {
+    gap: 12px;
+}
+
+button {
+    cursor: pointer;
+    border-radius: 50px;
+    background-color: #18192680;
+    color: var(--text);
+    border-width: 2px;
+    border-style: solid;
+    border-color: #b7bdf800;
+    transition: scale 200ms ease, border-color 200ms ease, background-color 200ms ease;
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+}
+
+button:hover, button:focus {
+    outline: none;
+    transition: scale 200ms ease, background-color 200ms ease;
+    background-color: var(--crust);
+    scale: 1.05;
+    border-color: var(--accent);
+}
+
+button:active {
+    scale: .95;
+    transition: scale 200ms cubic-bezier(0.075, 0.82, 0.165, 1), background-color 200ms ease;
 }
