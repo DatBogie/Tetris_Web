@@ -704,6 +704,7 @@ window.addEventListener("keydown", event=>{
         case " ":
             Game.CurrentBlock?.InstantDrop();
             break;
+        case "Enter":
         case "Escape":
             Game.TogglePause();
             break;
