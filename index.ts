@@ -632,14 +632,29 @@ const Blocks = {
     )
 }
 
-class Mod {
-    constructor(ns:string, name:string, desc:string, blocks?:Record<Enum.BlockShape, Block>) {
-        
+class ModEngine {
+    private static ModList:Record<string,Mod> = {};
+    static LoadMod(mod:Mod) : boolean {
+        if (this.ModList[mod.Namespace] !== undefined) return false;
+        this.ModList[mod.Namespace] = mod;
+        mod.Load();
+        return true;
     }
+}
+
+class Mod {
+    constructor(ns:string, name:string, desc:string="", onLoad:VoidFunction, blocks?:Record<Enum.BlockShape, Block>) {
+        this.Namespace = ns;
+        this.Name = name;
+        this.Description = desc;
+        this.Blocks = blocks;
+        this.Load = onLoad;
+    };
     readonly Name:string;
     readonly Description:string;
     readonly Namespace:string;
-    readonly Blocks:Record<Enum.BlockShape, Block>;
+    readonly Blocks?:Record<Enum.BlockShape, Block>;
+    readonly Load:VoidFunction;
 }
 
 function onResize() {
