@@ -55,14 +55,13 @@ body {
     background-color: var(--mantle);
 }
 
-.game-canvas {
+.game-canvas, .modal {
     position: absolute;
     aspect-ratio: 320/640;
     transition: filter 200ms ease;
-    /* aspect-ratio: 4/3; */
 }
 
-.game-canvas.paused {
+.game-canvas.paused, .modal.active {
     filter: blur(16px) saturate(120%) brightness(80%);
 }
 
@@ -71,7 +70,7 @@ body {
     height: 100vh;
 }
 
-#pause-ind {
+#pause-ind, .modal {
     pointer-events: none;
     transition: transform 200ms cubic-bezier(0.6, -0.28, 0.735, 0.045), opacity 200ms ease;
     transform: translateY(25px);
@@ -82,7 +81,7 @@ body {
     gap: 24px;
 }
 
-#pause-ind.paused {
+#pause-ind.paused, .modal.active {
     pointer-events: all;
     transition: transform 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
     transform: none;
@@ -90,7 +89,7 @@ body {
     filter: none;
 }
 
-#pause-ind > div {
+#pause-ind > div, .modal > div {
     text-align: center;
     color: white;
     font-size: 2.5rem;
@@ -104,7 +103,7 @@ body {
     border-radius: 16px;
 }
 
-#pause-btns {
+#pause-btns, .modal > div:has(> button) {
     gap: 12px;
 }
 
@@ -134,4 +133,9 @@ button:hover, button:focus {
 button:active {
     scale: .95;
     transition: scale 200ms cubic-bezier(0.075, 0.82, 0.165, 1), background-color 200ms ease;
+}
+
+.modal {
+    width: auto;
+    height: 100%;
 }

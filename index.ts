@@ -69,11 +69,17 @@ class Utils {
     static RandomRange(min:number, max:number) : number {
         return Math.floor(Math.random()*max-min) + min;
     }
-    static PickRandomFromArray(arr:Array<any>) {
+    static PickRandomFromArray(arr:Array<any>) : any {
         return arr[this.RandomRange(0,arr.length-1)];
     }
-    static PickRandomFromDict(dict:Record<any,any>) {
+    static PickRandomFromDict(dict:Record<any,any>) : any {
         return dict[this.PickRandomFromArray(Object.keys(dict))];
+    }
+    static MergeDicts(x:Record<any,any>, d:Record<any,any>) : Record<any,any> {
+        for (const [k,v] of Object.entries(d)) {
+            x[k] ??= v;
+        }
+        return x;
     }
 }
 
@@ -289,12 +295,12 @@ class Game {
         });
         if (!this._running) {
             (document.getElementById("pause-text") as HTMLElement).innerText = "Game Over!";
-            (document.getElementById("resume") as HTMLElement).style.display = "none";
-            (document.getElementById("restart") as HTMLElement).innerText = "Start";
+            (document.getElementById("pause-resume") as HTMLElement).style.display = "none";
+            (document.getElementById("pause-restart") as HTMLElement).innerText = "Start";
         } else {
             (document.getElementById("pause-text") as HTMLElement).innerText = "Paused...";
-            (document.getElementById("resume") as HTMLElement).style.display = "initial";
-            (document.getElementById("restart") as HTMLElement).innerText = "Restart";
+            (document.getElementById("pause-resume") as HTMLElement).style.display = "initial";
+            (document.getElementById("pause-restart") as HTMLElement).innerText = "Restart";
         }
         if (this.Paused) {
             PauseMenuSel = 0;
@@ -626,6 +632,16 @@ const Blocks = {
     )
 }
 
+class Mod {
+    constructor(ns:string, name:string, desc:string, blocks?:Record<Enum.BlockShape, Block>) {
+        
+    }
+    readonly Name:string;
+    readonly Description:string;
+    readonly Namespace:string;
+    readonly Blocks:Record<Enum.BlockShape, Block>;
+}
+
 function onResize() {
     document.querySelectorAll<HTMLElement>(".game-canvas").forEach(canvas=>{
         if (window.innerWidth >= window.innerHeight) {
@@ -717,7 +733,7 @@ Game.DrawGrid();
 Game.NewGame();
 // Game.StartGame();
 
-document.getElementById("resume")?.addEventListener("click",()=>{
+document.getElementById("pause-resume")?.addEventListener("click",()=>{
     if (!Game.Running) {
         Game.StartGame();
         return;
@@ -725,7 +741,11 @@ document.getElementById("resume")?.addEventListener("click",()=>{
     Game.TogglePause(false);
 });
 
-document.getElementById("restart")?.addEventListener("click",()=>{
+document.getElementById("pause-restart")?.addEventListener("click",()=>{
     Game.Reset();
     Game.StartGame();
+});
+
+document.getElementById("pause-mods")?.addEventListener("click",()=>{
+    
 });
