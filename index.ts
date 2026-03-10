@@ -764,3 +764,5 @@ document.getElementById("pause-restart")?.addEventListener("click",()=>{
 document.getElementById("pause-mods")?.addEventListener("click",()=>{
     
 });
+
+export default { Enum, Game, Color, BlockData, Block, BlockInstance }
