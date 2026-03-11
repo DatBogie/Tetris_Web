@@ -2,6 +2,7 @@
     "Name": "Test Mod", // The mod's name.
     "Namespace": "test-mod", // The mod's namespace. Style guide: lowercase, '-'s instead of spaces.
     "Description": "This is an example testing mod.", // The mod's description.
-    "onLoad": "load.ts", // The name of the TypeScript file to run when the mod is loaded.
-    "onStart": "main.ts" // The name of the TypeScript file to run when a game is started.
+    "Blocks": [
+        [[]]
+    ]
 }

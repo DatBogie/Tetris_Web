@@ -454,6 +454,12 @@ class BlockInstance extends Block {
     }
 }
 
+const CustomBlockShape:Record<string,number> = { MinValue: 7 }
+function registerCustomBlock(name:string,blockShapes:number[][][]) {
+    CustomBlockShape[name] = CustomBlockShape.MinValue;
+    CustomBlockShape.MinValue++;
+}
+
 const Blocks = {
     [Enum.BlockShape.I]: new Block(
         [
