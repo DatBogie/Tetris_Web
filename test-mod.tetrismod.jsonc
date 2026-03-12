@@ -2,7 +2,7 @@
     "Name": "Test Mod", // The mod's name.
     "Namespace": "test-mod", // The mod's namespace. Style guide: lowercase, '-'s instead of spaces.
     "Description": "This is an example testing mod.", // The mod's description.,
-    "BlockShapes": []
+    "BlockShapes": ["—"],
     "Blocks": [
         
     ]
