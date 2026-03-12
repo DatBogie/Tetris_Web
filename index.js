@@ -92,6 +92,12 @@ class Utils {
     static PickRandomFromDict(dict) {
         return dict[this.PickRandomFromArray(Object.keys(dict))];
     }
+    static MergeDicts(x, d) {
+        for (const [k, v] of Object.entries(d)) {
+            x[k] ??= v;
+        }
+        return x;
+    }
 }
 class Canvas2D {
     constructor(canvas, ctx) {
@@ -309,13 +315,13 @@ class Game {
         });
         if (!this._running) {
             document.getElementById("pause-text").innerText = "Game Over!";
-            document.getElementById("resume").style.display = "none";
-            document.getElementById("restart").innerText = "Start";
+            document.getElementById("pause-resume").style.display = "none";
+            document.getElementById("pause-restart").innerText = "Start";
         }
         else {
             document.getElementById("pause-text").innerText = "Paused...";
-            document.getElementById("resume").style.display = "initial";
-            document.getElementById("restart").innerText = "Restart";
+            document.getElementById("pause-resume").style.display = "initial";
+            document.getElementById("pause-restart").innerText = "Restart";
         }
         if (this.Paused) {
             PauseMenuSel = 0;
@@ -475,6 +481,11 @@ class BlockInstance extends Block {
         return lowestPoint;
     }
 }
+const CustomBlockShape = { MinValue: 7 };
+function registerCustomBlock(name, blockShapes) {
+    CustomBlockShape[name] = CustomBlockShape.MinValue;
+    CustomBlockShape.MinValue++;
+}
 const Blocks = {
     [Enum.BlockShape.I]: new Block([
         [
@@ -631,6 +642,31 @@ const Blocks = {
         ]
     ], new BlockData("#f5a97f"))
 };
+class ModEngine {
+    static ModList = {};
+    static LoadMod(mod) {
+        if (this.ModList[mod.Namespace] !== undefined)
+            return false;
+        this.ModList[mod.Namespace] = mod;
+        mod.Load();
+        return true;
+    }
+}
+class Mod {
+    constructor(ns, name, desc = "", onLoad, blocks) {
+        this.Namespace = ns;
+        this.Name = name;
+        this.Description = desc;
+        this.Blocks = blocks;
+        this.Load = onLoad;
+    }
+    ;
+    Name;
+    Description;
+    Namespace;
+    Blocks;
+    Load;
+}
 function onResize() {
     document.querySelectorAll(".game-canvas").forEach(canvas => {
         if (window.innerWidth >= window.innerHeight) {
@@ -711,6 +747,7 @@ window.addEventListener("keydown", event => {
         case " ":
             Game.CurrentBlock?.InstantDrop();
             break;
+        case "Enter":
         case "Escape":
             Game.TogglePause();
             break;
@@ -721,14 +758,17 @@ window.addEventListener("keydown", event => {
 Game.DrawGrid();
 Game.NewGame();
 // Game.StartGame();
-document.getElementById("resume")?.addEventListener("click", () => {
+document.getElementById("pause-resume")?.addEventListener("click", () => {
     if (!Game.Running) {
         Game.StartGame();
         return;
     }
     Game.TogglePause(false);
 });
-document.getElementById("restart")?.addEventListener("click", () => {
+document.getElementById("pause-restart")?.addEventListener("click", () => {
     Game.Reset();
     Game.StartGame();
 });
+document.getElementById("pause-mods")?.addEventListener("click", () => {
+});
+export default { Enum, Game, Color, BlockData, Block, BlockInstance };

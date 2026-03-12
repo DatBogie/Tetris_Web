@@ -659,7 +659,7 @@ class Mod {
     readonly Name:string;
     readonly Description:string;
     readonly Namespace:string;
-    readonly Blocks?:Record<Enum.BlockShape, Block>;
+    readonly Blocks?:Record<number, Block>;
     readonly Load:VoidFunction;
 }
 
