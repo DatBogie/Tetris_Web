@@ -768,7 +768,11 @@ document.getElementById("pause-restart")?.addEventListener("click",()=>{
 });
 
 document.getElementById("pause-mods")?.addEventListener("click",()=>{
-    
+    document.getElementById("mods")?.classList.toggle("active");
+});
+
+document.getElementById("pause-settings")?.addEventListener("click",()=>{
+    document.getElementById("settings")?.classList.toggle("active");
 });
 
 export default { Enum, Game, Color, BlockData, Block, BlockInstance }

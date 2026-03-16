@@ -139,3 +139,25 @@ button:active {
     width: auto;
     height: 100%;
 }
+
+ul.layout {
+    list-style: none;
+    padding: 0;
+}
+
+input {
+    background-color: var(--base);
+    color: white;
+    border-radius: 5px;
+    border-width: 2px;
+    border-style: solid;
+    border-color: var(--surface0);
+}
+input[type="number"] {
+    appearance: textfield;
+    width: 25px;
+}
+
+span {
+    font-size: 1rem;
+}
