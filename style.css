@@ -79,6 +79,8 @@ body {
     background-color: transparent;
     flex-direction: column;
     gap: 24px;
+    aspect-ratio: unset;
+    width: 466.5px !important;
 }
 
 #pause-ind.paused, .modal.active {
@@ -138,11 +140,17 @@ button:active {
 .modal {
     width: auto;
     height: 100%;
+    overflow: scroll;
+    padding: 1px;
 }
 
 ul.layout {
     list-style: none;
     padding: 0;
+}
+
+.left-align {
+    text-align: left;
 }
 
 input {
@@ -159,6 +167,23 @@ input[type="number"] {
     text-align: right;
 }
 
-span {
+span, li {
     font-size: 1rem;
+}
+
+details summary {
+    margin-top: 10px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    list-style: none;
+}
+
+details summary::before {
+    content: "➤";
+    margin-right: 10px;
+    transition: transform ease 200ms;
+}
+details[open] summary::before {
+    transform: rotate(90deg);
 }
