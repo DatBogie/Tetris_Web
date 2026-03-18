@@ -33,7 +33,7 @@ body {
     background-color: var(--base);
     margin: 0;
     padding: 0;
-    overflow-y: hidden;
+    overflow: hidden;
     font-family: "Nunito", serif;
 }
 
@@ -192,7 +192,7 @@ details summary::before {
     display: inline-block;
     margin-right: 10px;
     transform: rotate(180deg);
-    transition: transform 200ms ease-out;
+    transition: transform 400ms cubic-bezier(.72,1.88,.67,.7);
 }
 details[open] summary::before {
     content: "⤷";

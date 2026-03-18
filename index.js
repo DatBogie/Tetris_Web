@@ -315,8 +315,14 @@ class Game {
         }), Enum.ThemeStyle.Dark)
     ];
     // static readonly PixelSize:number = 32;
+    // (320 + 640) / (10 + 20)
+    // ((10 + 20) / (320 + 640)) * 1024
+    // 32 + (height/)
     static get PixelSize() {
-        return clamp((Game.GameCanvas.Canvas.width + Game.GameCanvas.Canvas.height) / (Game.Width + Game.Height), 0, 32);
+        return Math.min(Game.GameCanvas.Canvas.width / Game.Width, Game.GameCanvas.Canvas.height / Game.Height);
+        // return (Game.GameCanvas.Canvas.width/Game.Width);
+        // return clamp(((Game.Width + Game.Height) / (Game.GameCanvas.Canvas.width + Game.GameCanvas.Canvas.height)) * 1024,0,32);
+        // return clamp((Game.GameCanvas.Canvas.width + Game.GameCanvas.Canvas.height) / (Game.Width + Game.Height),0,32);
     }
     static Width = 10;
     static Height = 20;
@@ -612,7 +618,7 @@ class BlockInstance extends Block {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                if (Game.Data[y + oY] === undefined || Game.Data[x + oX] === undefined)
+                if (Game.Data[y + oY] === undefined || Game.Data[0][x + oX] === undefined)
                     return false;
                 if (Game.Data[y + oY][x + oX] !== 0)
                     return false;
@@ -879,8 +885,9 @@ class Mod {
     Load;
 }
 function onResize() {
-    document.querySelectorAll(".game-canvas").forEach(canvas => {
-        if (window.innerWidth >= Game.GameCanvas.Canvas.width) {
+    const cond = document.documentElement.scrollWidth <= window.innerWidth || document.documentElement.scrollHeight <= window.innerHeight;
+    document.querySelectorAll(".game-canvas, .modal").forEach(canvas => {
+        if (cond) {
             canvas.style.height = "100%";
             canvas.style.width = "auto";
         }
