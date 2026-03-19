@@ -433,7 +433,7 @@ class Game {
             }
         }
     }
-    static EraseLine(self:BlockInstance|Game, y?:number) {
+    static async EraseLine(self:BlockInstance|Game, y?:number) {
         if (this !== self && self !== Game.CurrentBlock) return;
         if (self instanceof BlockInstance)
             y??=self.Y;
@@ -441,6 +441,10 @@ class Game {
             y??=0;
         for (let x=0; x<Game.Width; x++) {
             Game._data[y][x] = 0;
+            if (Game.Anims) {
+                await sleep(2);
+                Game.RedrawCanvas();
+            }
         }
     }
     static RedrawCanvas() {
@@ -471,7 +475,7 @@ class Game {
         var cFlag = false;
         for (let y=0; y < Game.Height; y++) {
             if (Game._data[y].every(col=>col!==0)) {
-                Game.EraseLine(Game, y);
+                await Game.EraseLine(Game, y);
                 for (let oY=y-1; oY>=0; oY--) {
                     for (let x=0; x<Game.Width; x++) {
                         Game._data[oY+1][x] = Game._data[oY][x];
@@ -551,6 +555,20 @@ const Settings = {
     Height: settingsWin?.querySelector("#settings-game-height"),
     Physics: settingsWin?.querySelector("#settings-physics")
 } as Record<string, HTMLElement|HTMLInputElement>
+const SettingsBuffer:Map<string,Record<string,string[]|HTMLInputElement|any>> = new Map<string,any>();
+function WriteSettingsBuffer() : void {
+    for (const [k,v] of SettingsBuffer.entries()) {
+        setAttr(Game,k,v.value);
+        if (v.funcs && v.funcs.length !== 0) {
+            for (const f of v.funcs) {
+                let x:Function|undefined = getAttr(Game,f);
+                if (x === undefined) continue;
+                x();
+            }
+        }
+    }
+    SettingsBuffer.clear();
+}
 function handleSettings() : void {
     for (const [k, el] of Object.entries(Settings)) {
         if (el instanceof HTMLInputElement) {
@@ -565,27 +583,23 @@ function handleSettings() : void {
                         const min = parseFloat(el.dataset.min ?? "0");
                         const max = parseFloat(el.dataset.max ?? "100");
                         const val = (el.classList.contains("int")? Math.trunc : dummy)(clamp(el.valueAsNumber,min,max));
-                        setAttr(Game,k,el.classList.contains("percent")? val/max : val);
-                        if (funcs.length !== 0) {
-                            for (const f of funcs) {
-                                let x:Function|undefined = getAttr(Game,f);
-                                if (x === undefined) continue;
-                                x();
-                            }
-                        }
-                        el.valueAsNumber = getAttr(Game,k) * (el.classList.contains("percent")? 100 : 1);
+                        // setAttr(Game,k,el.classList.contains("percent")? val/max : val);
+                        SettingsBuffer.set(k,{ value:(el.classList.contains("percent")? val/max : val), funcs:funcs, el:el });
+                        el.valueAsNumber = SettingsBuffer.get(k) as unknown as number * (el.classList.contains("percent")? 100 : 1);
                     })
                     break;
                 case "checkbox":
                     el.checked = getAttr(Game,k);
                     el.addEventListener("change",()=>{
-                        setAttr(Game,k,el.checked);
+                        // setAttr(Game,k,el.checked);
+                        SettingsBuffer.set(k,{ value:el.checked, el:el });
                     });
                     break;
                 default:
                     el.value = getAttr(Game,k);
                     el.addEventListener("change",()=>{
-                        setAttr(Game,k,el.value);
+                        // setAttr(Game,k,el.value);
+                        SettingsBuffer.set(k,{ value:el.value, el:el });
                     });
                     break;
             }
@@ -687,7 +701,8 @@ class BlockInstance extends Block {
         else {
             for (let i=this._y; i<this.LowestValidY; i++) {
                 this.Move(0,1);
-                await sleep(2);
+                if (i % 2 === 0)
+                    await sleep(0);
             }
         }
         this.Stamp();
@@ -1034,10 +1049,16 @@ document.getElementById("mods-back")?.addEventListener("click",()=>{
 
 document.getElementById("pause-settings")?.addEventListener("click",()=>{
     if (document.querySelector(".modal.active")) return;
+    SettingsBuffer.clear();
     document.getElementById("settings")?.classList.add("active");
     updateSelectionButtons();
 });
 document.getElementById("settings-back")?.addEventListener("click",()=>{
+    document.getElementById("settings")?.classList.remove("active");
+    updateSelectionButtons();
+    WriteSettingsBuffer();
+});
+document.getElementById("settings-quit")?.addEventListener("click",()=>{
     document.getElementById("settings")?.classList.remove("active");
     updateSelectionButtons();
 });

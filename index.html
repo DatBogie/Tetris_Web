@@ -34,8 +34,8 @@
                     <li><span>Game Height: </span><input id="settings-game-height" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000"><span>px</span></li>
                     <li><span>Gravity: </span><input id="settings-physics" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="NewGame"></li>
                     <details>
-                        <summary class="keyboard-selectable">Keybinds</summary>
-                        <li>
+                        <summary class="center keyboard-selectable">Keybinds</summary>
+                        <li class="details-content">
                             <ul class="layout left-align">
                                 <li style="gap: 5px;"><span>Move Left: </span><button class="keybind keyboard-selectable" data-bind="Left" data-key="ArrowLeft"></button></li>
                                 <li style="gap: 5px;"><span>Move Right: </span><button class="keybind keyboard-selectable" data-bind="Right" data-key="ArrowRight"></button></li>
@@ -46,13 +46,18 @@
                             </ul>
                         </li>
                     </details>
-                    <li><button id="settings-back" class="keyboard-selectable">Back</button></li>
+                    <li>
+                        <div class="center modal-buttons">
+                            <button id="settings-back" class="keyboard-selectable">Save &amp; Close</button>
+                            <button id="settings-quit" class="keyboard-selectable">Discard &amp; Close</button>
+                        </div>
+                    </li>
                 </ul>
             </div>
         </div>
         <div id="mods" class="center modal">
             <div>Mods</div>
-            <div id="mods-content" class="center modal-content">
+            <div id="mods-content" class="center modal-content modal-buttons">
                 <button id="mods-back" class="keyboard-selectable">Back</button>
             </div>
         </div>
