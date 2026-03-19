@@ -114,7 +114,7 @@ body {
     gap: 12px;
 }
 
-button, input {
+button, input, summary {
     transition: scale 200ms ease, border-color 200ms ease, background-color 200ms ease, box-shadow 200ms ease;
 }
 
@@ -132,7 +132,7 @@ button {
     padding-bottom: 7px;
 }
 
-button:hover, button:focus, input:focus {
+button:hover, button:focus, input:focus, summary:focus {
     outline: none;
     transition: scale 200ms ease, background-color 200ms ease;
     background-color: var(--crust);
@@ -200,6 +200,10 @@ details summary {
     font-weight: bold;
     cursor: pointer;
     list-style: none;
+    border-radius: 5px;
+    border-width: 2px;
+    border-color: #00000000;
+    border-style: solid;
 }
 
 details summary::before {
