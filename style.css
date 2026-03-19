@@ -52,7 +52,8 @@ body {
 }
 
 #stale {
-    background-color: var(--mantle);
+    background: none;
+    /* background-color: var(--mantle); */
 }
 
 .game-canvas, .modal {
@@ -68,6 +69,10 @@ body {
 .game-head {
     width: 100vw;
     height: 100vh;
+}
+
+#pause-resume.hidden {
+    display: none;
 }
 
 #pause-ind, .modal {
@@ -109,6 +114,10 @@ body {
     gap: 12px;
 }
 
+button, input {
+    transition: scale 200ms ease, border-color 200ms ease, background-color 200ms ease, box-shadow 200ms ease;
+}
+
 button {
     cursor: pointer;
     border-radius: 50px;
@@ -117,14 +126,13 @@ button {
     border-width: 2px;
     border-style: solid;
     border-color: #b7bdf800;
-    transition: scale 200ms ease, border-color 200ms ease, background-color 200ms ease;
     padding-left: 14px;
     padding-right: 14px;
     padding-top: 7px;
     padding-bottom: 7px;
 }
 
-button:hover, button:focus {
+button:hover, button:focus, input:focus {
     outline: none;
     transition: scale 200ms ease, background-color 200ms ease;
     background-color: var(--crust);
@@ -165,6 +173,14 @@ input[type="number"] {
     appearance: textfield;
     width: 25px;
     text-align: right;
+}
+input[type="checkbox"] {
+    accent-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface0);
+}
+input[type="checkbox"]:focus {
+    accent-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
 }
 
 span, li {

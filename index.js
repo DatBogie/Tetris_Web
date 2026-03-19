@@ -1,23 +1,35 @@
 // const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 // const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 var PauseMenuSel = 0;
-var PauseBtns = document.querySelectorAll("#pause-btns > button");
-function focusButton() {
-    let i = 0;
-    let fFlag = false;
-    PauseBtns.forEach(btn => {
-        if (fFlag)
-            return;
-        if (i < PauseMenuSel) {
-            if (btn.style.display !== "none")
-                i++;
-            return;
+var PauseBtns = Array.from(document.querySelectorAll("#pause-btns > .keyboard-selectable"));
+function updateSelectionButtons(detailsSel) {
+    const modal = document.querySelector(".modal.active");
+    const btns = Array.from(modal ? modal.querySelectorAll(".modal-content .keyboard-selectable") : document.querySelectorAll("#pause-btns > .keyboard-selectable"));
+    const tBtns = [];
+    for (const btn of btns.values()) {
+        const details = btn.parentElement?.parentElement?.parentElement?.parentElement;
+        if (!btn.classList.contains("hidden") && (!details || !(details instanceof HTMLDetailsElement) || details.open)) {
+            tBtns.push(btn);
         }
-        if (btn.style.display === "none")
-            return;
-        fFlag = true;
-        return btn.focus();
-    });
+    }
+    PauseMenuSel = !detailsSel ? 0 : tBtns.indexOf(detailsSel.querySelector("summary") ?? detailsSel) ?? 0;
+    PauseBtns = tBtns;
+    focusButton();
+}
+function isChildOverflown(el, parent = el.parentElement) {
+    if (!parent)
+        return true;
+    const cRect = el.getBoundingClientRect();
+    const pRect = parent.getBoundingClientRect();
+    return (cRect.top >= pRect.bottom ||
+        cRect.right <= pRect.left ||
+        cRect.bottom <= pRect.top ||
+        cRect.left >= pRect.right);
+}
+function focusButton() {
+    setTimeout(() => {
+        PauseBtns[PauseMenuSel]?.focus();
+    }, 1);
 }
 function getAttr(instance, attr) {
     return instance[attr];
@@ -272,7 +284,13 @@ class Color {
         return this.RGBA;
     }
 }
+// Source - https://stackoverflow.com/a/39914235
+// Posted by Dan Dascalescu, modified by community. See post 'Timeline' for change history
+// Retrieved 2026-03-18, License - CC BY-SA 4.0
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 class Game {
+    static Anims = true;
+    static Physics = false;
     static KeyBinds = {};
     static ColorPalettes = [
         new ColorPalette("Catpuccin Macchiato", {
@@ -330,6 +348,7 @@ class Game {
     static GhostBlockOpacity = 0.25;
     static Paused = true;
     static CurrentBlock;
+    static BgCanvas = new Canvas2D(document.getElementById("bg"));
     static GameCanvas = new Canvas2D(document.getElementById("game"));
     static BlockCanvas = new Canvas2D(document.getElementById("block"));
     static StaleCanvas = new Canvas2D(document.getElementById("stale"));
@@ -400,6 +419,9 @@ class Game {
     static DrawGrid() {
         Game.GridDrawn = true;
         Game.GameCanvas.ClearCanvas();
+        Game.BgCanvas.ClearCanvas();
+        Game.BgCanvas.Context.fillStyle = "#1e2030";
+        Game.BgCanvas.Context.fillRect(Game.GameOffset.X, Game.GameOffset.Y, Game.Width * Game.PixelSize, Game.Height * Game.PixelSize);
         Game.GameCanvas.Context.strokeStyle = "#18192680";
         Game.GameCanvas.Context.lineWidth = 1;
         for (let x = 0; x <= Game.Width; x++) {
@@ -461,7 +483,7 @@ class Game {
         }
     }
     static EraseLine(self, y) {
-        if (Game !== self && self !== Game.CurrentBlock)
+        if (this !== self && self !== Game.CurrentBlock)
             return;
         if (self instanceof BlockInstance)
             y ??= self.Y;
@@ -483,19 +505,49 @@ class Game {
             }
         }
     }
-    static BlockStamped(self) {
-        if (self !== Game.CurrentBlock)
+    static async InstantDrop(px, py) {
+        if (py >= Game.Height - 1 || Game._data[py][px] === undefined)
             return;
+        for (let y = py + 1; y < Game.Height; y++) {
+            if (Game._data[y][px] !== 0)
+                return;
+            Game._data[y][px] = Game._data[py][px];
+            Game._data[py][px] = 0;
+            py++;
+            if (Game.Anims) {
+                Game.RedrawCanvas();
+                await sleep(20);
+            }
+        }
+    }
+    static async handleClears() {
+        var cFlag = false;
         for (let y = 0; y < Game.Height; y++) {
             if (Game._data[y].every(col => col !== 0)) {
                 Game.EraseLine(Game, y);
                 for (let oY = y - 1; oY >= 0; oY--) {
                     for (let x = 0; x < Game.Width; x++) {
                         Game._data[oY + 1][x] = Game._data[oY][x];
+                        cFlag = true;
                     }
                 }
             }
         }
+        if (Game.Physics) {
+            for (let y = Game.Height - 1; y > 0; y--) {
+                for (let x = 0; x < Game.Width; x++) {
+                    Game.InstantDrop(x, y);
+                    cFlag = true;
+                }
+            }
+        }
+        return cFlag;
+    }
+    static async BlockStamped(self) {
+        if (self !== Game.CurrentBlock)
+            return;
+        if (await Game.handleClears())
+            await Game.handleClears();
         Game.RedrawCanvas();
         Game.CurrentBlock = Game.RandomBlock();
         if (!Game.CurrentBlock.IsValidPosition()) {
@@ -504,6 +556,9 @@ class Game {
         Game.CurrentBlock.Draw();
     }
     static TogglePause(paused) {
+        document.querySelectorAll(".modal.active").forEach(el => {
+            el.classList.remove("active");
+        });
         if (paused === undefined)
             Game.Paused = !Game.Paused;
         else
@@ -520,17 +575,17 @@ class Game {
         });
         if (!Game._running) {
             document.getElementById("pause-text").innerText = "Game Over!";
-            document.getElementById("pause-resume").style.display = "none";
+            document.getElementById("pause-resume").classList.add("hidden");
             document.getElementById("pause-restart").innerText = "Start";
         }
         else {
             document.getElementById("pause-text").innerText = "Paused...";
-            document.getElementById("pause-resume").style.display = "initial";
+            document.getElementById("pause-resume").classList.remove("hidden");
             document.getElementById("pause-restart").innerText = "Restart";
         }
         if (Game.Paused) {
             PauseMenuSel = 0;
-            focusButton();
+            updateSelectionButtons();
         }
     }
 }
@@ -542,9 +597,11 @@ function dummy(x) {
 }
 const settingsWin = document.getElementById("settings");
 const Settings = {
+    Anims: settingsWin?.querySelector("#settings-anims"),
     GhostBlockOpacity: settingsWin?.querySelector("#settings-ghost-opacity"),
     Width: settingsWin?.querySelector("#settings-game-width"),
-    Height: settingsWin?.querySelector("#settings-game-height")
+    Height: settingsWin?.querySelector("#settings-game-height"),
+    Physics: settingsWin?.querySelector("#settings-physics")
 };
 function handleSettings() {
     for (const [k, el] of Object.entries(Settings)) {
@@ -572,8 +629,17 @@ function handleSettings() {
                         el.valueAsNumber = getAttr(Game, k) * (el.classList.contains("percent") ? 100 : 1);
                     });
                     break;
+                case "checkbox":
+                    el.checked = getAttr(Game, k);
+                    el.addEventListener("change", () => {
+                        setAttr(Game, k, el.checked);
+                    });
+                    break;
                 default:
                     el.value = getAttr(Game, k);
+                    el.addEventListener("change", () => {
+                        setAttr(Game, k, el.value);
+                    });
                     break;
             }
         }
@@ -674,8 +740,15 @@ class BlockInstance extends Block {
         Game.WriteShape(this, this._x, this._y, this.CurrentShape);
         Game.BlockStamped(this);
     }
-    InstantDrop() {
-        this.Move(0, this.LowestValidY - this._y);
+    async InstantDrop() {
+        if (!Game.Anims)
+            this.Move(0, this.LowestValidY - this._y);
+        else {
+            for (let i = this._y; i < this.LowestValidY; i++) {
+                this.Move(0, 1);
+                await sleep(2);
+            }
+        }
         this.Stamp();
     }
     get LowestValidY() {
@@ -905,28 +978,33 @@ window.addEventListener("keydown", event => {
         return;
     if (!Game.Running || Game.Paused) {
         switch (event.key) {
-            case "ArrowLeft": break;
-            case "ArrowRight": break;
-            case "Escape": break;
-            case " ": break;
-            case "z": break;
+            case "ArrowLeft":
+            case "ArrowRight":
+            case "ArrowUp":
+            case "ArrowDown":
+            case "Escape":
+            case " ":
+            case "z":
+            case "Enter":
             case "c": break;
             default: return;
         }
-        let len = 0;
-        PauseBtns.forEach(btn => {
-            if (btn.style.display !== "none")
-                len++;
-        });
         switch (event.key) {
             case "ArrowLeft":
-                PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, -1, 0, len - 1);
+                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
+                    break;
+            case "ArrowUp":
+                PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, -1, 0, PauseBtns.length - 1);
                 return focusButton();
             case "ArrowRight":
-                PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, 1, 0, len - 1);
+                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
+                    break;
+            case "ArrowDown":
+                PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, 1, 0, PauseBtns.length - 1);
                 return focusButton();
             case "z":
             case "c":
+            case "Enter":
                 document.activeElement?.click();
                 return;
             case " ":
@@ -940,13 +1018,6 @@ window.addEventListener("keydown", event => {
     if (Game.Paused && event.key !== "Escape")
         return;
     switch (event.key) {
-        // case " ":
-        //     Game.CurrentBlock = Game.RandomBlock();
-        //     Game.CurrentBlock.Draw();
-        //     break;
-        // case "Enter":
-        //     Game.CurrentBlock?.Stamp();
-        //     break;
         case Game.KeyBinds.Left:
             Game.CurrentBlock?.Move(-1, 0);
             break;
@@ -991,17 +1062,21 @@ document.getElementById("pause-mods")?.addEventListener("click", () => {
     if (document.querySelector(".modal.active"))
         return;
     document.getElementById("mods")?.classList.add("active");
+    updateSelectionButtons();
 });
 document.getElementById("mods-back")?.addEventListener("click", () => {
     document.getElementById("mods")?.classList.remove("active");
+    updateSelectionButtons();
 });
 document.getElementById("pause-settings")?.addEventListener("click", () => {
     if (document.querySelector(".modal.active"))
         return;
     document.getElementById("settings")?.classList.add("active");
+    updateSelectionButtons();
 });
 document.getElementById("settings-back")?.addEventListener("click", () => {
     document.getElementById("settings")?.classList.remove("active");
+    updateSelectionButtons();
 });
 const detailsArr = [];
 document.querySelectorAll("details").forEach(el => {
@@ -1011,6 +1086,9 @@ document.querySelectorAll("details").forEach(el => {
     document.head.appendChild(style);
     el.classList.add(`details-${ind}`);
     el.addEventListener("click", () => {
+        setTimeout(() => {
+            updateSelectionButtons(el);
+        }, 1);
         var height = (el.children.item(1)?.children.item(0)?.clientHeight ?? 0) * (el.children.item(1)?.children.length ?? 1);
         style.textContent = `
         details[open].details-${ind}::details-content {
@@ -1057,5 +1135,23 @@ document.querySelectorAll("button.keybind").forEach(el => {
         el.textContent = "…";
         document.addEventListener("keydown", click);
     });
+});
+document.querySelectorAll("input.keyboard-selectable").forEach(el => {
+    el.addEventListener("keydown", event => {
+        switch (event.key) {
+            case "Enter":
+            case "ArrowUp":
+            case "ArrowDown":
+                return event.preventDefault();
+            default:
+                return;
+        }
+    });
+    el.addEventListener("focus", () => {
+        el.select();
+    });
+});
+window.addEventListener("load", () => {
+    updateSelectionButtons();
 });
 // export default { Enum, Game, Color, BlockData, Block, BlockInstance }

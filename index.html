@@ -11,46 +11,49 @@
 </head>
 <body>
     <div class="center game-head">
+        <canvas id="bg" class="game-canvas" width="320" height="640"></canvas>
         <canvas id="stale" class="game-canvas" width="320" height="640"></canvas>
         <canvas id="block" class="game-canvas" width="320" height="640"></canvas>
         <canvas id="game" class="game-canvas" width="320" height="640"></canvas>
         <div id="pause-ind" class="center game-canvas" style="width: 100vw; height: 100vh;">
             <div id="pause-text">Paused...</div>
             <div id="pause-btns" class="center">
-                <button id="pause-resume">Resume</button>
-                <button id="pause-restart">Restart</button>
-                <button id="pause-settings">Settings</button>
-                <button id="pause-mods">Mods</button>
+                <button id="pause-resume" class="keyboard-selectable">Resume</button>
+                <button id="pause-restart" class="keyboard-selectable">Restart</button>
+                <button id="pause-settings" class="keyboard-selectable">Settings</button>
+                <button id="pause-mods" class="keyboard-selectable">Mods</button>
             </div>
         </div>
         <div id="settings" class="center modal">
             <div>Settings</div>
-            <div id="settings-content modal-content" class="center">
+            <div id="settings-content" class="center modal-content">
                 <ul class="layout">
-                    <li><span>Ghost Block Opacity: </span><input id="settings-ghost-opacity" type="number" class="percent" data-min="0" data-max="100" name="Test"><span>%</span></li>
-                    <li><span>Game Width: </span><input id="settings-game-width" type="number" class="int" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000" name="Test"><span>px</span></li>
-                    <li><span>Game Height: </span><input id="settings-game-height" type="number" class="int" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000" name="Test"><span>px</span></li>
+                    <li><span>Ghost Block Opacity: </span><input id="settings-ghost-opacity" type="number" class="percent keyboard-selectable" data-min="0" data-max="100"><span>%</span></li>
+                    <li><span>Animations: </span><input id="settings-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
+                    <li><span>Game Width: </span><input id="settings-game-width" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000"><span>px</span></li>
+                    <li><span>Game Height: </span><input id="settings-game-height" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000"><span>px</span></li>
+                    <li><span>Gravity: </span><input id="settings-physics" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="NewGame"></li>
                     <details>
-                        <summary>Keybinds</summary>
+                        <summary class="keyboard-selectable">Keybinds</summary>
                         <li>
                             <ul class="layout left-align">
-                                <li style="gap: 5px;"><span>Move Left: </span><button class="keybind" data-bind="Left" data-key="ArrowLeft"></button></li>
-                                <li style="gap: 5px;"><span>Move Right: </span><button class="keybind" data-bind="Right" data-key="ArrowRight"></button></li>
-                                <li style="gap: 5px;"><span>Soft Drop: </span><button class="keybind" data-bind="Soft" data-key="ArrowDown"></button></li>
-                                <li style="gap: 5px;"><span>Hard Drop: </span><button class="keybind" data-bind="Hard" data-key=" "></button></li>
-                                <li style="gap: 5px;"><span>Rotate Clockwise: </span><button class="keybind" data-bind="RC" data-key="ArrowUp"></button></li>
-                                <li style="gap: 5px;"><span>Rotate Counterclockwise: </span><button class="keybind" data-bind="RCC" data-key="z"></button></li>
+                                <li style="gap: 5px;"><span>Move Left: </span><button class="keybind keyboard-selectable" data-bind="Left" data-key="ArrowLeft"></button></li>
+                                <li style="gap: 5px;"><span>Move Right: </span><button class="keybind keyboard-selectable" data-bind="Right" data-key="ArrowRight"></button></li>
+                                <li style="gap: 5px;"><span>Soft Drop: </span><button class="keybind keyboard-selectable" data-bind="Soft" data-key="ArrowDown"></button></li>
+                                <li style="gap: 5px;"><span>Hard Drop: </span><button class="keybind keyboard-selectable" data-bind="Hard" data-key=" "></button></li>
+                                <li style="gap: 5px;"><span>Rotate Clockwise: </span><button class="keybind keyboard-selectable" data-bind="RC" data-key="ArrowUp"></button></li>
+                                <li style="gap: 5px;"><span>Rotate Counterclockwise: </span><button class="keybind keyboard-selectable" data-bind="RCC" data-key="z"></button></li>
                             </ul>
                         </li>
                     </details>
-                    <li><button id="settings-back">Back</button></li>
+                    <li><button id="settings-back" class="keyboard-selectable">Back</button></li>
                 </ul>
             </div>
         </div>
         <div id="mods" class="center modal">
             <div>Mods</div>
-            <div id="mods-content modal-content" class="center">
-                <button id="mods-back">Back</button>
+            <div id="mods-content" class="center modal-content">
+                <button id="mods-back" class="keyboard-selectable">Back</button>
             </div>
         </div>
     </div>
