@@ -2,15 +2,190 @@
     "Name": "Test Mod", // The mod's name.
     "Namespace": "test-mod", // The mod's namespace. Style guide: lowercase, '-'s instead of spaces.
     "Description": "This is an example testing mod.", // The mod's description.,
-    "BlockShapes": ["—"],
-    "Blocks": [
-        
+    "Blocks": {
+        "—": [
+            [
+                [0,0,0,0,0,0],
+                [1,1,1,1,1,1],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0]
+            ],
+            [
+                [0,0,0,0,1,0],
+                [0,0,0,0,1,0],
+                [0,0,0,0,1,0],
+                [0,0,0,0,1,0],
+                [0,0,0,0,1,0],
+                [0,0,0,0,1,0]
+            ],
+            [
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [1,1,1,1,1,1],
+                [0,0,0,0,0,0]
+            ],
+            [
+                [0,1,0,0,0,0],
+                [0,1,0,0,0,0],
+                [0,1,0,0,0,0],
+                [0,1,0,0,0,0],
+                [0,1,0,0,0,0],
+                [0,1,0,0,0,0]
+            ]
+        ],
+        "[": [
+            [
+                [1,1,1,1,0,0],
+                [1,0,0,0,0,0],
+                [1,0,0,0,0,0],
+                [1,0,0,0,0,0],
+                [1,0,0,0,0,0],
+                [1,1,1,1,0,0]
+            ],
+            [
+                [1,1,1,1,1,1],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0]
+            ],
+            [
+                [0,0,1,1,1,1],
+                [0,0,0,0,0,1],
+                [0,0,0,0,0,1],
+                [0,0,0,0,0,1],
+                [0,0,0,0,0,1],
+                [0,0,1,1,1,1]
+            ],
+            [
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [1,1,1,1,1,1]
+            ]
+        ],
+        "]": [
+            [
+                [0,0,1,1,1,1],
+                [0,0,0,0,0,1],
+                [0,0,0,0,0,1],
+                [0,0,0,0,0,1],
+                [0,0,0,0,0,1],
+                [0,0,1,1,1,1]
+            ],
+            [
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [1,1,1,1,1,1]
+            ],
+            [
+                [1,1,1,1,0,0],
+                [1,0,0,0,0,0],
+                [1,0,0,0,0,0],
+                [1,0,0,0,0,0],
+                [1,0,0,0,0,0],
+                [1,1,1,1,0,0]
+            ],
+            [
+                [1,1,1,1,1,1],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [1,0,0,0,0,1],
+                [0,0,0,0,0,0],
+                [0,0,0,0,0,0]
+            ]
+        ]
+    },
+    /* (Optional Field)
+     * --UI Theme Guide--
+     * Name  : string               : <any>
+     * Style : string?              : "Dark"|"Light"
+     * Data  : Dict<string, string> : {
+     *      // Omitted colors derive from the default style (Catppuccin Macchiato Lavender)
+     *      olc       : string? : HEX, rgb(a), hsv(a), hsl(a) // Outline Color
+     *      rosewater : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      flamingo  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      pink      : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      mauve     : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      red       : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      maroon    : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      peach     : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      yellow    : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      green     : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      teal      : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      sky       : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      sapphire  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      blue      : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      lavender  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      text      : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      subtext0  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      subtext1  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      overlay0  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      overlay1  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      overlay2  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      surface0  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      surface1  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      surface2  : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      base      : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      mantle    : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      crust     : string? : HEX, rgb(a), hsv(a), hsl(a)
+     *      accent    : string? : HEX, rgb(a), hsv(a), hsl(a) // Default: lavender
+     * }
+     */
+    "UI Themes": [
+        {
+            "Name": "Test Mod Theme"
+        }
+    ],
+    /* (Optional Field)
+     * --Palette Guide--
+     * Name         : string               : <any>
+     * Block Colors : Dict<string, string> : {
+     *      <Block Symbol> : <CSS string color : HEX, rgb, hsv, etc.>
+     *      ...
+     * }
+     * UI Theme     : string?              : <any>
+     */
+    "Palettes": [
+        {
+            "Name": "Test Mod Palette",
+            "Block Colors": {
+                "—": "#f4dbd6",
+                "[": "#f0c6c6",
+                "]": "#f5bde6"
+            },
+            "UI Theme": "Test Mod Theme"
+        }
     ],
     "Override Levels": true, // true: Replace default level pack. false: Append to default level pack.
+    /* (Optional Field)
+     * --Level Guide--
+     * Name              : string : <any>
+     * Speed Multiplier  : float  : (0,100)
+     * Score Requirement : int    : [0,inf)
+     * Points Multiplier : int?   : (0,inf) // Leave absent to use default points multiplier math (levelIndex * points)
+     * 
+     */
     "Levels": [
         {
             "Name": "Level 01",
-            "Speed": 1
+            "Speed Multiplier": 1.0,
+            "Score Requirement": 0
+        },
+        {
+            "Name": "Level 02",
+            "Speed Multiplier": 1.05,
+            "Score Requirement": 1000
         }
     ]
 }
