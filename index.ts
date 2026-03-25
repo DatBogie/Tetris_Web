@@ -179,18 +179,20 @@ class Point {
 }
 
 class ColorPalette {
-    constructor(name:string,blocktheme?:Record<Enum.BlockShape|number,Color>,uitheme?:UITheme,style:Enum.ThemeStyle=Enum.ThemeStyle.Dark) {
+constructor(name:string,blocktheme?:Record<Enum.BlockShape|number,Color>,uitheme?:UITheme,style:Enum.ThemeStyle=Enum.ThemeStyle.Dark,css?:string) {
         this.Name = name;
         this.BlockTheme = blocktheme;
         this.Style = style;
         if (uitheme?.Name === undefined || uitheme?.Style === undefined)
             uitheme?.setPropertiesFromPalette(this);
         this.UITheme = uitheme;
+        this.CSS = css;
     }
     readonly Name:string;
     readonly BlockTheme?:Record<Enum.BlockShape|number,Color>;
     readonly UITheme?:UITheme;
     readonly Style:Enum.ThemeStyle;
+    readonly CSS?:string;
 }
 
 class UITheme {
@@ -229,6 +231,15 @@ class Color {
             o = parseInt(hex.substring(6,8),16);
         return new Color(r,g,b,o/255);
     }
+    static parseCSSNumber(n:string,retInt:boolean=false) : number {
+        if (n.endsWith("deg")) {
+            return (!retInt? parseFloat : parseInt)(n) / 360;
+        }
+        if (n.endsWith("%")) {
+            return (!retInt? parseFloat : parseInt)(n) / 100;
+        }
+        return (!retInt? parseFloat : parseInt)(n);
+    }
     /*
      * Adapted version of https://gist.github.com/mjackson/5311256 > hslToRgb()
      */
@@ -249,6 +260,36 @@ class Color {
             let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
             let p = 2 * l - q;
             return new Color(hue2rgb(p, q, h + 1/3),hue2rgb(p, q, h),hue2rgb(p, q, h - 1/3),a);
+        }
+    }
+    static fromCSS(s:string) {
+        if (s.startsWith("rgb")) {
+            let r:number,g:number,b:number,a:number|undefined;
+            let data:string[];
+            if (s.startsWith("rgba"))
+                data = s.substring(5,s.length-1).split(",",4);
+            else
+                data = s.substring(4,s.length-1).split(",",3);
+            r = parseInt(data[0]);
+            g = parseInt(data[1]);
+            b = parseInt(data[2]);
+            if (data.length > 3)
+                a = parseFloat(data[3]);
+            return new Color(r,g,b,a);
+        }
+        if (s.startsWith("#")) {
+            return Color.fromHex(s);
+        }
+        if (s.startsWith("hsl")) {
+            let h:number,_s:number,l:number,a:number|undefined;
+            let data:string[];
+            if (s.startsWith("hsla"))
+                data = s.substring(5,s.length-1).split(",",4)
+            else
+                data = s.substring(4,s.length-1).split(",",3)
+            h = Color.parseCSSNumber(data[0],true);
+            _s = Color.parseCSSNumber(data[0],true);
+            return Color.fromHSLA(h,_s,l,a);
         }
     }
     private _rgb:string;
@@ -354,7 +395,7 @@ class Game {
         );
     }
     static get Speed() : number {
-        return Game.BaseSpeedMs / Game.Level.Speed;
+        return Game.BaseSpeedMs / Game.Level.Speed / Game.SpeedMul;
     }
     static get Data() : readonly (readonly (number|BlockData)[])[] {
         return Game._data;
@@ -999,18 +1040,15 @@ class ModEngine {
 }
 
 class Mod {
-    constructor(ns:string, name:string, desc:string="", onLoad:VoidFunction, blocks?:Record<Enum.BlockShape, Block>) {
-        this.Namespace = ns;
-        this.Name = name;
-        this.Description = desc;
-        this.Blocks = blocks;
-        this.Load = onLoad;
+    constructor(modData:Record<string,any>) {
+        this.Name = modData.Name;
+        this.Description = modData.Description ?? "";
+        this.Blocks = modData["Custom Blocks"];
     };
     readonly Name:string;
     readonly Description:string;
     readonly Namespace:string;
     readonly Blocks?:Record<number, Block>;
-    readonly Load:VoidFunction;
 }
 
 function onResize() {

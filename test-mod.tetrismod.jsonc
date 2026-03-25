@@ -1,8 +1,7 @@
 {
-    "Name": "Test Mod", // The mod's name.
-    "Namespace": "test-mod", // The mod's namespace. Style guide: lowercase, '-'s instead of spaces.
-    "Description": "This is an example testing mod.", // The mod's description.,
-    "Blocks": {
+    "Name": "Test Mod", // Must be unique (compared to other loaded mods)
+    "Description": "This is a mod for testing purposes.", // (Optional)
+    "Custom Blocks": {
         "—": [
             [
                 [0,0,0,0,0,0],
@@ -110,48 +109,78 @@
      * --UI Theme Guide--
      * Name  : string               : <any>
      * Style : string?              : "Dark"|"Light"
+     * CSS   : string?              : Custom CSS. See https://github.com/DatBogie/Tetris_Web/blob/main/style.css
      * Data  : Dict<string, string> : {
      *      // Omitted colors derive from the default style (Catppuccin Macchiato Lavender)
-     *      olc       : string? : HEX, rgb(a), hsv(a), hsl(a) // Outline Color
-     *      rosewater : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      flamingo  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      pink      : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      mauve     : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      red       : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      maroon    : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      peach     : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      yellow    : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      green     : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      teal      : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      sky       : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      sapphire  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      blue      : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      lavender  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      text      : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      subtext0  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      subtext1  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      overlay0  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      overlay1  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      overlay2  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      surface0  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      surface1  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      surface2  : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      base      : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      mantle    : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      crust     : string? : HEX, rgb(a), hsv(a), hsl(a)
-     *      accent    : string? : HEX, rgb(a), hsv(a), hsl(a) // Default: lavender
+     *      olc       : string? : HEX, rgb(a), hsv(a), hsl(a), --variable // Outline Color
+     *      rosewater : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      flamingo  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      pink      : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      mauve     : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      red       : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      maroon    : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      peach     : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      yellow    : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      green     : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      teal      : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      sky       : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      sapphire  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      blue      : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      lavender  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      text      : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      subtext0  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      subtext1  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      overlay0  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      overlay1  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      overlay2  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      surface0  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      surface1  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      surface2  : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      base      : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      mantle    : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      crust     : string? : HEX, rgb(a), hsv(a), hsl(a), --variable
+     *      accent    : string? : HEX, rgb(a), hsv(a), hsl(a), --variable // Default: --lavender
      * }
      */
     "UI Themes": [
         {
-            "Name": "Test Mod Theme"
+            "Name": "Catppuccin Latte",
+            "Style": "Light",
+            "Data": {
+                "rosewater": "#dc8a78",
+                "flamingo": "#dd7878",
+                "pink": "#ea76cb",
+                "mauve": "#8839ef",
+                "red": "#d20f39",
+                "maroon": "#e64553",
+                "peach": "#fe640b",
+                "yellow": "#df8e1d",
+                "green": "#40a02b",
+                "teal": "#179299",
+                "sky": "#04a5e5",
+                "sapphire": "#209fb5",
+                "blue": "#1e66f5",
+                "lavender": "#7287fd",
+                "text": "#4c4f69",
+                "subtext0": "#6c6f85",
+                "subtext1": "#5c5f77",
+                "overlay0": "#9ca0b0",
+                "overlay1": "#8c8fa1",
+                "overlay2": "#7c7f93",
+                "surface0": "#ccd0da",
+                "surface1": "#bcc0cc",
+                "surface2": "#acb0be",
+                "base": "#eff1f5",
+                "mantle": "#e6e9ef",
+                "crust": "#dce0e8"
+            }
         }
     ],
     /* (Optional Field)
      * --Palette Guide--
      * Name         : string               : <any>
      * Block Colors : Dict<string, string> : {
-     *      <Block Symbol> : <CSS string color : HEX, rgb, hsv, etc.>
+     *      <Block Symbol:string> : string : HEX, rgb, hsv, hsl, --variable, etc.
      *      ...
      * }
      * UI Theme     : string?              : <any>
@@ -160,11 +189,11 @@
         {
             "Name": "Test Mod Palette",
             "Block Colors": {
-                "—": "#f4dbd6",
-                "[": "#f0c6c6",
-                "]": "#f5bde6"
+                "—": "--rosewater",
+                "[": "--flamingo",
+                "]": "--pink"
             },
-            "UI Theme": "Test Mod Theme"
+            "UI Theme": "Catppuccin Latte"
         }
     ],
     "Override Levels": true, // true: Replace default level pack. false: Append to default level pack.
