@@ -179,33 +179,63 @@ class Point {
 }
 
 class ColorPalette {
-constructor(name:string,blocktheme?:Record<Enum.BlockShape|number,Color>,uitheme?:UITheme,style:Enum.ThemeStyle=Enum.ThemeStyle.Dark,css?:string) {
+    constructor(name:string,blocktheme?:BlockTheme,uitheme?:UITheme,style:Enum.ThemeStyle=Enum.ThemeStyle.Dark) {
         this.Name = name;
         this.BlockTheme = blocktheme;
         this.Style = style;
         if (uitheme?.Name === undefined || uitheme?.Style === undefined)
             uitheme?.setPropertiesFromPalette(this);
         this.UITheme = uitheme;
-        this.CSS = css;
     }
     readonly Name:string;
-    readonly BlockTheme?:Record<Enum.BlockShape|number,Color>;
+    readonly BlockTheme?:BlockTheme;
     readonly UITheme?:UITheme;
     readonly Style:Enum.ThemeStyle;
-    readonly CSS?:string;
+    private enabled:boolean = false;
+    get Enabled() : boolean {
+        return this.enabled;
+    }
+    set Enabled(enabled:boolean|undefined) {
+        if (enabled === this.enabled) return;
+        this.enabled = enabled === undefined? !this.enabled : enabled;
+        Game.ApplyColorPalettes();
+    }
+}
+
+class BlockTheme {
+    constructor(name:string|undefined,data:Record<Enum.BlockShape|number,Color>) {
+        this.name = name;
+        this.Data = data;
+    }
+    private name?:string;
+    get Name() : string|undefined {
+        return this.Name;
+    }
+    readonly Data:Record<Enum.BlockShape|number,Color>;
+    private enabled:boolean = false;
+    get Enabled() : boolean {
+        return this.enabled;
+    }
+    set Enabled(enabled:boolean|undefined) {
+        if (enabled === this.enabled) return;
+        this.enabled = enabled === undefined? !this.enabled : enabled;
+        Game.ApplyBlockThemes();
+    }
 }
 
 class UITheme {
-    constructor(name:string|undefined,data:Record<Enum.UIThemeKey,Color>,style?:Enum.ThemeStyle) {
+    constructor(name:string|undefined,data:Record<Enum.UIThemeKey,Color>,style?:Enum.ThemeStyle,css?:string) {
         this.name = name;
         this.Data = data;
         this.style = style;
+        this.CSS = css;
     }
     private name?:string;
     get Name() : string|undefined {
         return this.name;
     }
     readonly Data:Record<Enum.UIThemeKey,Color>;
+    readonly CSS?:string;
     private style?:Enum.ThemeStyle;
     get Style() : Enum.ThemeStyle|undefined {
         return this.style;
@@ -213,6 +243,15 @@ class UITheme {
     setPropertiesFromPalette(palette:ColorPalette) : void {
         this.name ??= palette.Name;
         this.style ??= palette.Style;
+    }
+    private enabled:boolean = false;
+    get Enabled() : boolean {
+        return this.enabled;
+    }
+    set Enabled(enabled:boolean|undefined) {
+        if (enabled === this.enabled) return;
+        this.enabled = enabled === undefined? !this.enabled : enabled;
+        Game.ApplyUIThemes();
     }
 }
 
@@ -314,13 +353,22 @@ class Color {
 // Retrieved 2026-03-18, License - CC BY-SA 4.0
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+class TimeStampedData {
+    constructor(data?:any) {
+        this.TimeStamp = Date.now();
+        this.Data = data;
+    }
+    TimeStamp:number;
+    Data:any;
+}
+
 class Game {
     static AnimTime:number = 20;
     static Anims:boolean = true;
     static Physics:boolean = false;
-    static KeyBinds:Record<string,string> = {}
-    static ColorPalettes:ColorPalette[] = [
-        new ColorPalette("Catpuccin Macchiato",{
+    static KeyBinds:Record<string,string> = {};
+    static BlockThemes:Record<string,BlockTheme> = {
+        "Default": new BlockTheme(undefined,{
             [Enum.BlockShape.I]: Color.fromHex("#91d7e3"),
             [Enum.BlockShape.J]: Color.fromHex("#eed49f"),
             [Enum.BlockShape.L]: Color.fromHex("#c6a0f6"),
@@ -328,7 +376,10 @@ class Game {
             [Enum.BlockShape.S]: Color.fromHex("#ed8796"),
             [Enum.BlockShape.T]: Color.fromHex("#b7bdf8"),
             [Enum.BlockShape.Z]: Color.fromHex("#f5a97f")
-        },new UITheme(undefined,{
+        })
+    };
+    static UIThemes:Record<string,UITheme> = {
+        "Default": new UITheme(undefined,{
             [Enum.UIThemeKey.olc]: Color.fromHSLA(0,0,100,.25),
             [Enum.UIThemeKey.rosewater]: Color.fromHex("#f4dbd6"),
             [Enum.UIThemeKey.flamingo]: Color.fromHex("#f0c6c6"),
@@ -357,8 +408,41 @@ class Game {
             [Enum.UIThemeKey.mantle]: Color.fromHex("#1e2030"),
             [Enum.UIThemeKey.crust]: Color.fromHex("#181926"),
             [Enum.UIThemeKey.accent]: Color.fromHex("#b7bdf8")
-        }),Enum.ThemeStyle.Dark)
-    ];
+        })
+    };
+    static ColorPalettes:Record<string,ColorPalette> = {
+        "Default": new ColorPalette("Catppuccin Macchiato",Game.BlockThemes.Default,Game.UIThemes.Default,Enum.ThemeStyle.Dark)
+    };
+    private static filterActive(dict:Record<any,any>,callback?:(k:string, theme:any) => void,invert:boolean=false) : Record<any,any> {
+        const ret = {};
+        for (const [k, theme] of Object.entries(dict))
+            if ((theme.Enabled && !invert) || (!theme.Enabled && invert)) {
+                ret[k] = theme;
+                if (callback) callback(k, theme);
+            }
+        return ret;
+    }
+    static get ActiveUIThemes() : Record<string,ColorPalette> {
+        return Game.filterActive(Game.UIThemes);
+    }
+    static get ActiveBlockThemes() : Record<string,ColorPalette> {
+        return Game.filterActive(Game.BlockThemes);
+    }
+    static get ActiveColorPalettes() : Record<string,ColorPalette> {
+        return Game.filterActive(Game.ColorPalettes);
+    }
+    static ApplyUIThemes() {
+
+    }
+    static ApplyBlockThemes() {
+        
+    }
+    static ApplyColorPalettes() {
+        Game.filterActive(Game.ColorPalettes,(k:string, theme:ColorPalette)=>{
+            if (theme.BlockTheme) theme.BlockTheme.Enabled = true;
+            if (theme.UITheme) theme.UITheme.Enabled = true;
+        });
+    }
     static get PixelSize() : number {
         return Math.min(Game.GameCanvas.Canvas.width/Game.Width,Game.GameCanvas.Canvas.height/Game.Height);
     }

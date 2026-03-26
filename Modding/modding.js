@@ -11,13 +11,13 @@ filePicker.addEventListener("change",()=>{
     const reader = new FileReader();
     reader.onload = ()=>{
         const data = reader.result.split(",");
-        if (!typesMap[data[0]]) {
+        if (typesMap.indexOf(data[0]) === -1) {
             const es = `Invalid/unsupported file type: ${data[0].replaceAll("data:","").replaceAll(";base64","").split("/")[1]}!\nOnly mp3, ogg, and wav are supported.`;
             console.error(es);
             return alert(es);
         }
         output.textContent = JSON.stringify({
-            "Format": typesMap[data[0]],
+            "Format": data[0],
             "Data": data[1]
         },undefined,4);
     }

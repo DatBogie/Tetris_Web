@@ -11,15 +11,15 @@
         @import "/style.css";
         body {
             padding: 5px;
-            display: flex;
+            gap: 5px;
             flex-direction: column;
             width: 100vw;
             height: 100vh;
+        }
+        .center {
+            display: flex;
             justify-content: center;
             align-items: center;
-        }
-        body > * {
-            margin: 5px;
         }
         textarea {
             width: 500px;
@@ -47,10 +47,10 @@
     <!-- <link type="stylesheet" href="/Modding/modding.css"> -->
     <!-- <link type="stylesheet" href="/style.css"> -->
 </head>
-<body>
+<body class="center">
     <h1>Tetris Web Modding Tools</h1>
     <h2>Audio Converter</h2>
-    <span><button id="copy">Copy Data</button><input type="file" id="file"></span>
+    <span class="center" style="gap: 10px;"><button id="copy">Copy Data</button><input type="file" id="file"></span>
     <textarea id="output" readonly></textarea>
 </body>
 <script src="/Modding/modding.js"></script>
