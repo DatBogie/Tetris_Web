@@ -505,7 +505,9 @@ class Game {
     }
     private static async GameTick() {
         if (Game.Paused) return;
-        if (Game.CurrentBlock && !await Game.CurrentBlock.Move(0,1)) {
+        const moveRes:boolean|undefined = await Game.CurrentBlock.Move(0,1);
+        if (Game.CurrentBlock && moveRes === false) {
+            console.log(moveRes);
             await Game.CurrentBlock.Stamp();
         }
     }
@@ -858,12 +860,25 @@ class BlockInstance extends Block {
         }
         return true;
     }
-    private tween:Tween;
+    private get tween() : Tween {
+        return this.tweens[this.tweens.length-1];
+    }
+    private get prevTween() : Tween {
+        if (this.tweens.length <= 1) return undefined;
+        return this.tweens[this.tweens.length-2];
+    }
+    private tweens:Tween[] = [];
     private targetPos:xyObj;
-    async Move(x:number=0, y:number=0) : Promise<boolean> {
+    private dropping:boolean = false;
+    get IsDropping() : boolean {
+        return this.dropping;
+    }
+    async Move(x:number=0, y:number=0,isInstantDrop:boolean=false) : Promise<boolean|undefined> {
+        if (this.dropping) return undefined;
         const [orX, orY] = [x,y];
         x += this.targetPos?.x ?? Utils.BiasedRound(this._x); y += this.targetPos?.y ?? Utils.BiasedRound(this._y);
-        if (!this.IsValidPosition(x,y)) return false;
+        if (!this.IsValidPosition(x,y)) return !this.dropping? false : undefined;
+        if (isInstantDrop) this.dropping = true;
         this.targetPos = {x:x,y:y};
         const tData = {s:{x:Utils.BiasedRound(this._x,orX),y:Utils.BiasedRound(this._y,orY)},e:{x:Utils.BiasedRound(x,orX),y:Utils.BiasedRound(y,orY)}};
         const { promise: comp, resolve } = Promise.withResolvers();
@@ -874,7 +889,12 @@ class BlockInstance extends Block {
         //     this.Draw();
         //     return true;
         // }
-        this.tween = new Tween(tData.s)
+        const noTweens = this.tweens.length === 0;
+        if (this.tween && this.tween.isPlaying()) {
+            this.tween.stop();
+        }
+        this.tweens.push(new Tween(tData.s));
+        this.tween
         .to(tData.e,Game.AnimTime)
         .easing(Easing.Linear.InOut)
         .dynamic(true)
@@ -885,12 +905,20 @@ class BlockInstance extends Block {
         });
         var isComplete = false;
         const fin = ()=>{
+            if (isInstantDrop) this.dropping = false;
             isComplete = true;
             resolve(undefined);
         };
         this.tween.onComplete(fin);
         this.tween.onStop(fin);
         this.tween.start();
+        // if (!this.prevTween)
+        //     this.tween.start();
+        // else if (this.prevTween.isPlaying()) {
+        //     this.prevTween.stop();
+        //     this.prevTween.chain(this.tween).start();
+        // } else
+        //     this.tween.start();
         const updateFunc = ()=>{
             const t = performance.now();
             this.tween.update(t);
@@ -903,7 +931,7 @@ class BlockInstance extends Block {
         // this._x=Utils.BiasedRound(x);
         // this._y=Utils.BiasedRound(y);
         // this.Draw();
-        return true;
+        return !this.dropping? true : false;
     }
     Rotate(reverse:boolean=false) {
         let dir:number = (reverse) ? -1 : 1;
@@ -936,6 +964,7 @@ class BlockInstance extends Block {
         }
     }
     async Stamp() {
+        if (this.dropping) return;
         this._x = Utils.BiasedRound(this._x);
         this._y = Utils.BiasedRound(this._y);
         this.Draw(Game.StaleCanvas);
@@ -944,9 +973,9 @@ class BlockInstance extends Block {
     }
     async InstantDrop() {
         if (!Game.Anims)
-            this.Move(0,this.LowestValidY-this._y);
+            this.Move(0,this.LowestValidY-this._y,true);
         else {
-            await this.Move(0,this.LowestValidY-this._y);
+            await this.Move(0,this.LowestValidY-this._y,true);
             // for (let i=this._y; i<this.LowestValidY; i++) {
             //     this.Move(0,1);
             //     if (i % 2 === 0)

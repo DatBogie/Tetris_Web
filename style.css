@@ -287,11 +287,13 @@ details[open] summary::before {
 }
 #click-req > h1 {
     font-size: 5rem;
+    text-align: center;
     margin: 0;
 }
 #click-req > i {
     font-size: 2rem;
     color: var(--subtext1);
+    text-align: center;
 }
 #click-req:active {
     --click-req-grad0: #181926aa;
