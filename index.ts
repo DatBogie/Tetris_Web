@@ -1,4 +1,4 @@
-import { sfxr } from "./Modules/jsfxr.js"
+import { sfxr } from "jsfxr";
 import click from "./Sounds/click.json" with { type: 'json' };
 import { Tween, Easing } from "@tweenjs/tween.js";
 
@@ -12,11 +12,7 @@ clickWar?.addEventListener("click",()=>{
     },600);
 });
 
-type JSFXRSound = {
-    play() : void
-}
-
-var clickSound:JSFXRSound;
+var clickSound:jsfxrSound;
 
 var PauseMenuSel = 0;
 var PauseBtns:HTMLElement[] = Array.from(document.querySelectorAll("#pause-btns > .keyboard-selectable"));
@@ -28,7 +24,7 @@ function loadSFX() {
     window.removeEventListener("click",loadSFX);
 }
 
-function playSound(sound:JSFXRSound) : boolean {
+function playSound(sound:jsfxrSound) : boolean {
     if (!__sfx_loaded) return false;
     sound.play();
     return true;
@@ -270,6 +266,9 @@ class Color {
         if (n.endsWith("deg")) {
             return (!retInt? parseFloat : parseInt)(n) / 360;
         }
+        if (n.endsWith("turn")) {
+            return (!retInt? parseFloat : parseInt)(n) * 180;
+        }
         if (n.endsWith("%")) {
             return (!retInt? parseFloat : parseInt)(n) / 100;
         }
@@ -323,7 +322,8 @@ class Color {
             else
                 data = s.substring(4,s.length-1).split(",",3)
             h = Color.parseCSSNumber(data[0],true);
-            _s = Color.parseCSSNumber(data[0],true);
+            _s = Color.parseCSSNumber(data[1],true);
+            l = Color.parseCSSNumber(data[2],true);
             return Color.fromHSLA(h,_s,l,a);
         }
     }
@@ -358,7 +358,7 @@ class FeedtapeArray<T> {
         this.data.fill(undefined);
         Object.seal(this.data);
     }
-    private data:Array<T>;
+    private data:Array<T|undefined>;
     get length() : number {
         return this.data.length;
     }
@@ -370,7 +370,7 @@ class FeedtapeArray<T> {
         this.feed();
         this.data[this.length-1] = value;
     }
-    get(index:number) : T {
+    get(index:number) : T|undefined {
         return this.data[index];
     }
     set(index:number,value:T) {
@@ -456,7 +456,7 @@ class Game {
         "Default": new ColorPalette("Catppuccin Macchiato",Game.BlockThemes.Default,Game.UIThemes.Default,Enum.ThemeStyle.Dark)
     };
     private static filterActive(dict:Record<any,any>,callback?:(k:string, theme:any) => void,invert:boolean=false) : Record<any,any> {
-        const ret = {};
+        const ret:Record<any,any> = {};
         for (const [k, theme] of Object.entries(dict))
             if ((theme.Enabled && !invert) || (!theme.Enabled && invert)) {
                 ret[k] = theme;
@@ -554,7 +554,7 @@ class Game {
     }
     private static async GameTick() {
         if (Game.Paused) return;
-        const moveRes:boolean|undefined = await Game.CurrentBlock.Move(0,1);
+        const moveRes:boolean|undefined = await Game.CurrentBlock?.Move(0,1);
         if (Game.CurrentBlock && moveRes === false) {
             await Game.CurrentBlock.Stamp();
         }
@@ -566,7 +566,7 @@ class Game {
         Game.blockFeed = new FeedtapeArray(2);
         Game.blockFeed.fill(Game.randBlock,1);
         Game.CurrentBlock = Game.RandomBlock();
-        Game.CurrentBlock.Draw();
+        Game.CurrentBlock?.Draw();
         if (Game._thread_id !== null) clearInterval(Game._thread_id);
         Game._thread_id = setInterval(Game.GameTick,Game.Speed);
     }
@@ -574,31 +574,32 @@ class Game {
     private static randBlock() : Block {
         return Utils.PickRandomFromDict(Blocks);
     }
-    private static heldBlock:Block;
+    private static heldBlock:Block|undefined;
     private static holdCooldown:boolean = false;
     static HoldBlock() : void {
         if (Game.holdCooldown) return;
         Game.holdCooldown = true;
         if (!Game.heldBlock) {
-            Game.heldBlock = Game.CurrentBlock.toBlock();
+            Game.heldBlock = Game.CurrentBlock?.toBlock();
             Game.CurrentBlock = Game.RandomBlock();
         } else {
             const buffer = Game.heldBlock;
-            Game.heldBlock = Game.CurrentBlock.toBlock();
+            Game.heldBlock = Game.CurrentBlock?.toBlock();
             Game.CurrentBlock = new BlockInstance(buffer);
         }
-        Game.CurrentBlock.Draw();
+        Game.CurrentBlock?.Draw();
         Game.HoldCanvas.ClearCanvas();
         // Game.DrawGrid(Game.HoldCanvas,Enum.GridMode.BG);
+        if (!Game.heldBlock) return;
         const block = new BlockInstance(Game.heldBlock).Clone();
         BlockInstance.Draw(block,Game.HoldCanvas,Math.ceil(Game.Width/2),Math.ceil(Game.Height/2),true);
         Game.DrawGrid(Game.HoldCanvas,Enum.GridMode.Grid,block.Width,block.Height,Math.ceil(Game.Width/2),Math.ceil(Game.Height/2));
     }
-    static RandomBlock() : BlockInstance {
+    static RandomBlock() : BlockInstance|undefined {
         Game.blockFeed.push(Game.randBlock());
-        return new BlockInstance(Game.blockFeed.get(0));
+        return Game.blockFeed.get(0)? new BlockInstance(Game.blockFeed.get(0) as Block) : undefined;
     }
-    static get NextBlock() : Block {
+    static get NextBlock() : Block|undefined {
         return Game.blockFeed.get(Game.blockFeed.length-1);
     }
     static DrawGrid(canvas?:Canvas2D,mode:Enum.GridMode=Enum.GridMode.Both,width?:number,height?:number,sX:number=0,sY:number=0) {
@@ -616,13 +617,13 @@ class Game {
         if ((!canvas && Game.DisableGrid) || (mode === Enum.GridMode.BG)) return;
         gameCanvas.Context.strokeStyle = "#18192680";
         gameCanvas.Context.lineWidth = 1;
-        for (let x=sX; x<=width? sX+width : Game.Width; x++) {
+        for (let x=sX; x<=(width? sX+width : Game.Width); x++) {
             gameCanvas.Context.beginPath();
             gameCanvas.Context.moveTo(Game.GameOffset.X+x*Game.PixelSize,Game.GameOffset.Y+sY);
             gameCanvas.Context.lineTo(Game.GameOffset.X+x*Game.PixelSize,Game.GameOffset.Y+sY+(height ?? Game.Height)*Game.PixelSize);
             gameCanvas.Context.stroke();
         }
-        for (let y=sY; y<=height? sY+height : Game.Height; y++) {
+        for (let y=sY; y<=(height? sY+height : Game.Height); y++) {
             gameCanvas.Context.beginPath();
             gameCanvas.Context.moveTo(Game.GameOffset.X+sX,Game.GameOffset.Y+y*Game.PixelSize);
             gameCanvas.Context.lineTo(Game.GameOffset.X+sX+(width ?? Game.Width)*Game.PixelSize,Game.GameOffset.Y+y*Game.PixelSize);
@@ -736,10 +737,10 @@ class Game {
         await Game.handleClears();
         Game.RedrawCanvas();
         Game.CurrentBlock = Game.RandomBlock();
-        if (!Game.CurrentBlock.IsValidPosition()) {
+        if (!Game.CurrentBlock?.IsValidPosition()) {
             Game.Reset();
         }
-        Game.CurrentBlock.Draw();
+        Game.CurrentBlock?.Draw();
     }
     static TogglePause(paused?:boolean) {
         document.querySelectorAll(".modal.active").forEach(el=>{
@@ -974,7 +975,7 @@ class BlockInstance extends Block {
         }
         return true;
     }
-    private tween:Tween;
+    private tween:Tween = new Tween([]);
     private targetPos:xyObj;
     private dropping:boolean = false;
     private isFake:boolean = false;
@@ -1301,8 +1302,8 @@ const Blocks:Record<string,Block> = {
 class ModEngine {
     private static ModList:Record<string,Mod> = {};
     static LoadMod(mod:Mod) : boolean {
-        if (this.ModList[mod.Namespace] !== undefined) return false;
-        this.ModList[mod.Namespace] = mod;
+        if (this.ModList[mod.Name] !== undefined) return false;
+        this.ModList[mod.Name] = mod;
         return true;
     }
 }
@@ -1315,7 +1316,6 @@ class Mod {
     };
     readonly Name:string;
     readonly Description:string;
-    readonly Namespace:string;
     readonly Blocks?:Record<number, Block>;
 }
 
@@ -1341,7 +1341,7 @@ window.addEventListener("click",loadSFX)
 window.addEventListener("keydown", async event=>{
     if (event.defaultPrevented || !__sfx_loaded) return;
     if (!Game.Running || Game.Paused) {
-        if (document.activeElement.classList.contains("keybind") && document.activeElement.textContent === "...")
+        if (document.activeElement?.classList.contains("keybind") && document.activeElement.textContent === "...")
             return event.preventDefault();
         switch(event.key) {
             case "ArrowLeft":
@@ -1361,7 +1361,7 @@ window.addEventListener("keydown", async event=>{
             case " ":
             case "Enter":
                 if (!(document.activeElement instanceof HTMLSelectElement)) {
-                    if (document.activeElement.classList.contains("keybind")) await sleep(2);
+                    if (document.activeElement?.classList.contains("keybind")) await sleep(2);
                     (document.activeElement as HTMLElement|undefined)?.click();
                 } else
                     (document.activeElement as HTMLSelectElement|undefined)?.showPicker();
@@ -1460,7 +1460,7 @@ document.querySelectorAll("details").forEach(el=>{
     document.head.appendChild(style);
     el.classList.add(`details-${ind}`);
     const summary = el.querySelector("summary");
-    summary.addEventListener("click",()=>{
+    summary?.addEventListener("click",()=>{
         setTimeout(()=>{
             updateSelectionButtons(el);
         },1);

@@ -3,7 +3,8 @@
         "resolveJsonModule": true,
         "target": "esnext",
         "module": "esnext",
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "allowSyntheticDefaultImports": true
-    }
+    },
+    "include": ["types","."]
 }
