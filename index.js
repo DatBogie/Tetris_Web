@@ -41,16 +41,6 @@ function updateSelectionButtons(detailsSel) {
     PauseBtns = tBtns;
     focusButton();
 }
-function isChildOverflown(el, parent = el.parentElement) {
-    if (!parent)
-        return true;
-    const cRect = el.getBoundingClientRect();
-    const pRect = parent.getBoundingClientRect();
-    return (cRect.top >= pRect.bottom ||
-        cRect.right <= pRect.left ||
-        cRect.bottom <= pRect.top ||
-        cRect.left >= pRect.right);
-}
 function focusButton() {
     setTimeout(() => {
         PauseBtns[PauseMenuSel]?.focus();
@@ -66,16 +56,6 @@ function setAttr(instance, attr, value) {
 }
 export var Enum;
 (function (Enum) {
-    let BlockShape;
-    (function (BlockShape) {
-        BlockShape[BlockShape["I"] = 0] = "I";
-        BlockShape[BlockShape["O"] = 1] = "O";
-        BlockShape[BlockShape["T"] = 2] = "T";
-        BlockShape[BlockShape["S"] = 3] = "S";
-        BlockShape[BlockShape["Z"] = 4] = "Z";
-        BlockShape[BlockShape["J"] = 5] = "J";
-        BlockShape[BlockShape["L"] = 6] = "L";
-    })(BlockShape = Enum.BlockShape || (Enum.BlockShape = {}));
     class CustomBlockShape {
         static get length() {
             let i = 0;
@@ -402,8 +382,50 @@ class Color {
 // Posted by Dan Dascalescu, modified by community. See post 'Timeline' for change history
 // Retrieved 2026-03-18, License - CC BY-SA 4.0
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+class FeedtapeArray {
+    constructor(length) {
+        this.data = new Array(length);
+        this.data.fill(undefined);
+        Object.seal(this.data);
+    }
+    data;
+    get length() {
+        return this.data.length;
+    }
+    feed() {
+        for (let i = 0; i < this.length - 1; i++)
+            this.data[i] = this.data[i + 1];
+    }
+    push(value) {
+        this.feed();
+        this.data[this.length - 1] = value;
+    }
+    get(index) {
+        return this.data[index];
+    }
+    set(index, value) {
+        this.data[index] = value;
+    }
+    fill(value, startIndex = 0, endIndex = this.length) {
+        for (let i = startIndex; i < endIndex; i++)
+            this.data[i] = typeof value === "function" ? value() : value;
+    }
+    toString() {
+        let s = "";
+        for (const [i, val] of this.data.entries())
+            if (i !== 0)
+                s += `, ${val}`;
+            else
+                s += `${val}`;
+        return s;
+    }
+}
 class Game {
-    static AnimTime = 60;
+    static DisableGrid = false;
+    static AnimMoveTime = 60;
+    static AnimDropTime = Game.AnimMoveTime * 2;
+    static AnimClearTime = Math.trunc((Game.AnimMoveTime / 2) * 10);
+    static FixedAnimClearTime = true;
     static MoveEaseStyle = "Linear";
     static MoveEaseDirection = "InOut";
     static DropEaseStyle = "Circular";
@@ -419,13 +441,13 @@ class Game {
     static KeyBinds = {};
     static BlockThemes = {
         "Default": new BlockTheme(undefined, {
-            [Enum.BlockShape.I]: Color.fromHex("#91d7e3"),
-            [Enum.BlockShape.J]: Color.fromHex("#eed49f"),
-            [Enum.BlockShape.L]: Color.fromHex("#c6a0f6"),
-            [Enum.BlockShape.O]: Color.fromHex("#a6da95"),
-            [Enum.BlockShape.S]: Color.fromHex("#ed8796"),
-            [Enum.BlockShape.T]: Color.fromHex("#b7bdf8"),
-            [Enum.BlockShape.Z]: Color.fromHex("#f5a97f")
+            "I": Color.fromHex("#91d7e3"),
+            "J": Color.fromHex("#eed49f"),
+            "L": Color.fromHex("#c6a0f6"),
+            "O": Color.fromHex("#a6da95"),
+            "S": Color.fromHex("#ed8796"),
+            "T": Color.fromHex("#b7bdf8"),
+            "Z": Color.fromHex("#f5a97f")
         })
     };
     static UIThemes = {
@@ -502,6 +524,8 @@ class Game {
     static SpeedMul = 1.0;
     static BaseSpeedMs = 1000.0;
     static GhostBlockOpacity = 0.25;
+    static AnimGhostBlock = false;
+    static RawBlockOpacity = 0.0;
     static Paused = true;
     static CurrentBlock;
     static BgCanvas = new Canvas2D(document.getElementById("bg"));
@@ -564,14 +588,24 @@ class Game {
             return;
         Game._running = true;
         Game.TogglePause(false);
+        Game.blockFeed = new FeedtapeArray(2);
+        Game.blockFeed.fill(Game.randBlock, 1);
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock.Draw();
         if (Game._thread_id !== null)
             clearInterval(Game._thread_id);
         Game._thread_id = setInterval(Game.GameTick, Game.Speed);
     }
+    static blockFeed;
+    static randBlock() {
+        return Utils.PickRandomFromDict(Blocks);
+    }
     static RandomBlock() {
-        return new BlockInstance(Utils.PickRandomFromDict(Blocks));
+        this.blockFeed.push(this.randBlock());
+        return new BlockInstance(this.blockFeed.get(0));
+    }
+    static get NextBlock() {
+        return this.blockFeed.get(this.blockFeed.length - 1);
     }
     static DrawGrid() {
         Game.GridDrawn = true;
@@ -579,6 +613,8 @@ class Game {
         Game.BgCanvas.ClearCanvas();
         Game.BgCanvas.Context.fillStyle = "#1e2030";
         Game.BgCanvas.Context.fillRect(Game.GameOffset.X, Game.GameOffset.Y, Game.Width * Game.PixelSize, Game.Height * Game.PixelSize);
+        if (Game.DisableGrid)
+            return;
         Game.GameCanvas.Context.strokeStyle = "#18192680";
         Game.GameCanvas.Context.lineWidth = 1;
         for (let x = 0; x <= Game.Width; x++) {
@@ -649,7 +685,7 @@ class Game {
         for (let x = 0; x < Game.Width; x++) {
             Game._data[y][x] = 0;
             if (Game.Anims) {
-                await sleep(Math.min(Game.AnimTime / 2, 80));
+                await sleep(Game.FixedAnimClearTime ? Game.AnimClearTime / Game.Width : Game.AnimClearTime);
                 Game.RedrawCanvas();
             }
         }
@@ -677,7 +713,7 @@ class Game {
             py++;
             if (Game.Anims) {
                 Game.RedrawCanvas();
-                await sleep(Game.AnimTime);
+                await sleep(Game.FixedAnimClearTime ? Game.AnimClearTime / Game.Width : Game.AnimClearTime);
             }
         }
     }
@@ -776,10 +812,16 @@ class Signal {
 }
 const settingsWin = document.getElementById("settings");
 const Settings = {
+    DisableGrid: settingsWin?.querySelector("#settings-grid-disabled"),
     SpeedMul: settingsWin?.querySelector("#settings-game-speed-mul"),
     Anims: settingsWin?.querySelector("#settings-anims"),
-    AnimTime: settingsWin?.querySelector("#settings-anim-time"),
+    AnimMoveTime: settingsWin?.querySelector("#settings-anim-move-time"),
+    AnimDropTime: settingsWin?.querySelector("#settings-anim-drop-time"),
+    AnimClearTime: settingsWin?.querySelector("#settings-anim-clear-time"),
+    FixedAnimClearTime: settingsWin?.querySelector("#settings-anim-clear-time-fixed"),
     GhostBlockOpacity: settingsWin?.querySelector("#settings-ghost-opacity"),
+    AnimGhostBlock: settingsWin?.querySelector("#settings-ghost-anims"),
+    RawBlockOpacity: settingsWin?.querySelector("#settings-raw-opacity"),
     Width: settingsWin?.querySelector("#settings-game-width"),
     Height: settingsWin?.querySelector("#settings-game-height"),
     Physics: settingsWin?.querySelector("#settings-physics"),
@@ -822,60 +864,61 @@ RejectSettingsBuffer.Connect(() => {
 function handleSettings() {
     for (const [k, el] of Object.entries(Settings)) {
         if (el instanceof HTMLInputElement) {
-            switch (el.type) {
-                case "number":
-                    const min = parseFloat(el.dataset.min ?? "0");
-                    const max = parseFloat(el.dataset.max ?? "100");
-                    const defaultVal = getAttr(Game, k);
-                    if (el.classList.contains("percent"))
-                        el.valueAsNumber = getAttr(Game, k) * max;
-                    else
-                        el.valueAsNumber = getAttr(Game, k);
-                    const funcs = (el.dataset.funcs ?? "").split(",");
-                    el.addEventListener("change", () => {
-                        if (isNaN(el.valueAsNumber)) {
-                            el.valueAsNumber = SettingsBuffer.get(k)?.value ?? (getAttr(Game, k) ?? defaultVal) * (el.classList.contains("percent") ? max : 1);
-                            return;
-                        }
-                        const val = (el.classList.contains("int") ? Math.trunc : dummy)(clamp(el.valueAsNumber, min, max));
-                        UpdateSettingsBuffer(k, { value: (el.classList.contains("percent") ? val / max : val), funcs: funcs, el: el });
-                        el.valueAsNumber = val;
-                    });
-                    RejectSettingsBuffer.Connect(() => {
-                        el.valueAsNumber = (getAttr(Game, k) ?? defaultVal) * (el.classList.contains("percent") ? max : 1);
-                    });
-                    break;
-                case "checkbox":
-                    el.checked = getAttr(Game, k);
-                    const _defaultVal = el.checked;
-                    el.addEventListener("change", () => {
-                        UpdateSettingsBuffer(k, { value: el.checked, el: el });
-                    });
-                    RejectSettingsBuffer.Connect(() => {
-                        el.checked = getAttr(Game, k) ?? _defaultVal;
-                    });
-                    break;
-                default:
-                    el.value = getAttr(Game, k);
-                    const __defaultVal = el.value;
-                    el.addEventListener("change", () => {
-                        UpdateSettingsBuffer(k, { value: el.value, el: el });
-                    });
-                    RejectSettingsBuffer.Connect(() => {
-                        el.value = getAttr(Game, k) ?? __defaultVal;
-                    });
-                    break;
+            if (el.type === "number") {
+                const min = parseFloat(el.dataset.min ?? "0");
+                const max = parseFloat(el.dataset.max ?? "100");
+                const defaultVal = getAttr(Game, k);
+                if (el.classList.contains("percent"))
+                    el.valueAsNumber = getAttr(Game, k) * max;
+                else
+                    el.valueAsNumber = getAttr(Game, k);
+                const funcs = (el.dataset.funcs ?? "").split(",");
+                el.addEventListener("change", () => {
+                    if (isNaN(el.valueAsNumber)) {
+                        el.valueAsNumber = SettingsBuffer.get(k)?.value ?? (getAttr(Game, k) ?? defaultVal) * (el.classList.contains("percent") ? max : 1);
+                        return;
+                    }
+                    const val = (el.classList.contains("int") ? Math.trunc : dummy)(clamp(el.valueAsNumber, min, max));
+                    UpdateSettingsBuffer(k, { value: (el.classList.contains("percent") ? val / max : val), funcs: funcs, el: el });
+                    el.valueAsNumber = val;
+                });
+                RejectSettingsBuffer.Connect(() => {
+                    el.valueAsNumber = (getAttr(Game, k) ?? defaultVal) * (el.classList.contains("percent") ? max : 1);
+                });
+            }
+            else if (el.type === "checkbox") {
+                el.checked = getAttr(Game, k);
+                const defaultVal = el.checked;
+                const funcs = (el.dataset.funcs ?? "").split(",");
+                el.addEventListener("change", () => {
+                    UpdateSettingsBuffer(k, { value: el.checked, el: el, funcs: funcs });
+                });
+                RejectSettingsBuffer.Connect(() => {
+                    el.checked = getAttr(Game, k) ?? defaultVal;
+                });
+            }
+            else {
+                el.value = getAttr(Game, k);
+                const defaultVal = el.value;
+                const funcs = (el.dataset.funcs ?? "").split(",");
+                el.addEventListener("change", () => {
+                    UpdateSettingsBuffer(k, { value: el.value, el: el, funcs: funcs });
+                });
+                RejectSettingsBuffer.Connect(() => {
+                    el.value = getAttr(Game, k) ?? defaultVal;
+                });
             }
         }
         else if (el instanceof HTMLSelectElement) {
             if (el.classList.contains("ease")) {
                 el.value = getAttr(Game, k);
-                const __defaultVal = el.value;
+                const defaultVal = el.value;
+                const funcs = (el.dataset.funcs ?? "").split(",");
                 el.addEventListener("change", () => {
-                    UpdateSettingsBuffer(k, { value: el.value, el: el });
+                    UpdateSettingsBuffer(k, { value: el.value, el: el, funcs: funcs });
                 });
                 RejectSettingsBuffer.Connect(() => {
-                    el.value = getAttr(Game, k) ?? __defaultVal;
+                    el.value = getAttr(Game, k) ?? defaultVal;
                 });
             }
         }
@@ -891,16 +934,21 @@ class BlockData {
     Color;
 }
 class Block {
-    constructor(blockShapes, blockData) {
+    constructor(blockShapes, blockData, symbol) {
         this.Shapes = blockShapes;
         this.Data = blockData;
+        this.Symbol = symbol;
     }
     Shapes;
     Data;
+    Symbol;
+    toString() {
+        return this.Symbol;
+    }
 }
 class BlockInstance extends Block {
     constructor(block) {
-        super(block.Shapes, block.Data);
+        super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width / 2 - this.CurrentShape[0].length / 2);
         this.targetPos = { x: this._x, y: this._y };
     }
@@ -951,7 +999,7 @@ class BlockInstance extends Block {
             if (this.tween && this.tween.isPlaying())
                 this.tween.stop();
             this.tween = new Tween(tData.s)
-                .to(tData.e, Game.AnimTime)
+                .to(tData.e, !isInstantDrop ? Game.AnimMoveTime : Game.AnimDropTime)
                 .easing(!isInstantDrop ? Game.MoveEase : Game.DropEase)
                 .dynamic(true)
                 .onUpdate(data => {
@@ -1015,9 +1063,14 @@ class BlockInstance extends Block {
         canvas.Context.fillStyle = this.Data.Color.RGBA;
         this._draw(canvas);
         // Draw ghost block
-        if (canvas === Game.BlockCanvas && this.LowestValidY > this._y) {
+        if (Game.GhostBlockOpacity > 0 && canvas === Game.BlockCanvas && this.LowestValidY > this._y) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.GhostBlockOpacity);
-            this._draw(canvas, this.targetPos.x, this.LowestValidY);
+            this._draw(canvas, !Game.AnimGhostBlock ? this.targetPos.x : this._x, this.LowestValidY);
+        }
+        // Draw accublock
+        if (Game.RawBlockOpacity > 0 && canvas === Game.BlockCanvas) {
+            canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.RawBlockOpacity);
+            this._draw(canvas, this.targetPos.x, this.targetPos.y);
         }
     }
     stamping = false;
@@ -1061,7 +1114,7 @@ class BlockInstance extends Block {
     }
 }
 const Blocks = {
-    [Enum.BlockShape.I]: new Block([
+    "I": new Block([
         [
             [0, 0, 0, 0],
             [1, 1, 1, 1],
@@ -1086,8 +1139,8 @@ const Blocks = {
             [0, 1, 0, 0],
             [0, 1, 0, 0]
         ]
-    ], new BlockData("#91d7e3")),
-    [Enum.BlockShape.O]: new Block([
+    ], new BlockData("#91d7e3"), "I"),
+    "O": new Block([
         [
             [1, 1],
             [1, 1]
@@ -1104,8 +1157,8 @@ const Blocks = {
             [1, 1],
             [1, 1]
         ]
-    ], new BlockData("#eed49f")),
-    [Enum.BlockShape.T]: new Block([
+    ], new BlockData("#eed49f"), "O"),
+    "T": new Block([
         [
             [0, 1, 0],
             [1, 1, 1],
@@ -1126,8 +1179,8 @@ const Blocks = {
             [1, 1, 0],
             [0, 1, 0]
         ]
-    ], new BlockData("#c6a0f6")),
-    [Enum.BlockShape.S]: new Block([
+    ], new BlockData("#c6a0f6"), "T"),
+    "S": new Block([
         [
             [0, 1, 1],
             [1, 1, 0],
@@ -1148,8 +1201,8 @@ const Blocks = {
             [0, 1, 1],
             [0, 0, 1]
         ]
-    ], new BlockData("#a6da95")),
-    [Enum.BlockShape.Z]: new Block([
+    ], new BlockData("#a6da95"), "S"),
+    "Z": new Block([
         [
             [1, 1, 0],
             [0, 1, 1],
@@ -1170,8 +1223,8 @@ const Blocks = {
             [1, 1, 0],
             [1, 0, 0]
         ]
-    ], new BlockData("#ed8796")),
-    [Enum.BlockShape.J]: new Block([
+    ], new BlockData("#ed8796"), "Z"),
+    "J": new Block([
         [
             [1, 0, 0],
             [1, 1, 1],
@@ -1192,8 +1245,8 @@ const Blocks = {
             [0, 1, 0],
             [1, 1, 0]
         ]
-    ], new BlockData("#b7bdf8")),
-    [Enum.BlockShape.L]: new Block([
+    ], new BlockData("#b7bdf8"), "J"),
+    "L": new Block([
         [
             [0, 0, 1],
             [1, 1, 1],
@@ -1214,7 +1267,7 @@ const Blocks = {
             [0, 1, 0],
             [0, 1, 0]
         ]
-    ], new BlockData("#f5a97f"))
+    ], new BlockData("#f5a97f"), "L")
 };
 class ModEngine {
     static ModList = {};
@@ -1258,30 +1311,18 @@ window.addEventListener("keydown", async (event) => {
     if (event.defaultPrevented || !__sfx_loaded)
         return;
     if (!Game.Running || Game.Paused) {
-        switch (event.key) {
-            case "ArrowLeft":
-            case "ArrowRight":
-            case "ArrowUp":
-            case "ArrowDown":
-            case "Escape":
-            case " ":
-            case "z":
-            case "Enter":
-            case "c": break;
-            default: return;
-        }
         if (document.activeElement.classList.contains("keybind") && document.activeElement.textContent === "...")
             return event.preventDefault();
         switch (event.key) {
             case "ArrowLeft":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    break;
+                    return;
             case "ArrowUp":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, -1, 0, PauseBtns.length - 1);
                 return focusButton();
             case "ArrowRight":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    break;
+                    return;
             case "ArrowDown":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, 1, 0, PauseBtns.length - 1);
                 return focusButton();
@@ -1298,6 +1339,11 @@ window.addEventListener("keydown", async (event) => {
                     document.activeElement?.showPicker();
                 return;
             case "Escape":
+            case "Backspace":
+                for (const el of PauseBtns.values()) {
+                    if (el?.classList?.contains("modal-back"))
+                        return el?.click();
+                }
                 if (!Game.Running)
                     return;
                 break;
@@ -1325,7 +1371,7 @@ window.addEventListener("keydown", async (event) => {
         case Game.KeyBinds.Hard:
             Game.CurrentBlock?.InstantDrop();
             break;
-        case "Enter":
+        case "Backspace":
         case "Escape":
             Game.TogglePause();
             break;
