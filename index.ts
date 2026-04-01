@@ -1284,30 +1284,18 @@ window.addEventListener("click",loadSFX)
 window.addEventListener("keydown", async event=>{
     if (event.defaultPrevented || !__sfx_loaded) return;
     if (!Game.Running || Game.Paused) {
-        switch(event.key) {
-            case "ArrowLeft":
-            case "ArrowRight":
-            case "ArrowUp":
-            case "ArrowDown":
-            case "Escape":
-            case " ":
-            case "z":
-            case "Enter":
-            case "c": break;
-            default: return;
-        }
         if (document.activeElement.classList.contains("keybind") && document.activeElement.textContent === "...")
             return event.preventDefault();
         switch(event.key) {
             case "ArrowLeft":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    break;
+                    return;
             case "ArrowUp":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel,-1,0,PauseBtns.length-1);
                 return focusButton();
             case "ArrowRight":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    break;
+                    return;
             case "ArrowDown":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel,1,0,PauseBtns.length-1);
                 return focusButton();
@@ -1322,6 +1310,11 @@ window.addEventListener("keydown", async event=>{
                     (document.activeElement as HTMLSelectElement|undefined)?.showPicker();
                 return;
             case "Escape":
+            case "Backspace":
+                for (const el of PauseBtns.values()) {
+                    if (el?.classList?.contains("modal-back"))
+                        return el?.click();
+                }
                 if (!Game.Running) return;
                 break;
             default: return;
@@ -1347,7 +1340,7 @@ window.addEventListener("keydown", async event=>{
         case Game.KeyBinds.Hard:
             Game.CurrentBlock?.InstantDrop();
             break;
-        case "Enter":
+        case "Backspace":
         case "Escape":
             Game.TogglePause();
             break;

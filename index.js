@@ -590,7 +590,6 @@ class Game {
         Game.TogglePause(false);
         Game.blockFeed = new FeedtapeArray(2);
         Game.blockFeed.fill(Game.randBlock, 1);
-        console.log(Game.blockFeed.toString());
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock.Draw();
         if (Game._thread_id !== null)
@@ -748,8 +747,6 @@ class Game {
         await Game.handleClears();
         Game.RedrawCanvas();
         Game.CurrentBlock = Game.RandomBlock();
-        console.log(Game.blockFeed.toString());
-        console.log(Game.NextBlock.toString());
         if (!Game.CurrentBlock.IsValidPosition()) {
             Game.Reset();
         }
@@ -848,7 +845,6 @@ function UpdateSettingsBuffer(k, data) {
 function WriteSettingsBuffer() {
     for (const [k, v] of SettingsBuffer.entries()) {
         setAttr(Game, k, v.value);
-        console.log(v.funcs);
         if (v.funcs && v.funcs.length !== 0) {
             for (const f of v.funcs) {
                 let x = getAttr(Game, f);
@@ -1315,30 +1311,18 @@ window.addEventListener("keydown", async (event) => {
     if (event.defaultPrevented || !__sfx_loaded)
         return;
     if (!Game.Running || Game.Paused) {
-        switch (event.key) {
-            case "ArrowLeft":
-            case "ArrowRight":
-            case "ArrowUp":
-            case "ArrowDown":
-            case "Escape":
-            case " ":
-            case "z":
-            case "Enter":
-            case "c": break;
-            default: return;
-        }
         if (document.activeElement.classList.contains("keybind") && document.activeElement.textContent === "...")
             return event.preventDefault();
         switch (event.key) {
             case "ArrowLeft":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    break;
+                    return;
             case "ArrowUp":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, -1, 0, PauseBtns.length - 1);
                 return focusButton();
             case "ArrowRight":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    break;
+                    return;
             case "ArrowDown":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, 1, 0, PauseBtns.length - 1);
                 return focusButton();
@@ -1355,6 +1339,11 @@ window.addEventListener("keydown", async (event) => {
                     document.activeElement?.showPicker();
                 return;
             case "Escape":
+            case "Backspace":
+                for (const el of PauseBtns.values()) {
+                    if (el?.classList?.contains("modal-back"))
+                        return el?.click();
+                }
                 if (!Game.Running)
                     return;
                 break;
@@ -1382,7 +1371,7 @@ window.addEventListener("keydown", async (event) => {
         case Game.KeyBinds.Hard:
             Game.CurrentBlock?.InstantDrop();
             break;
-        case "Enter":
+        case "Backspace":
         case "Escape":
             Game.TogglePause();
             break;
