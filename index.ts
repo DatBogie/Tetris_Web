@@ -67,7 +67,6 @@ function setAttr(instance:any,attr:string,value:any) : void {
 }
 
 export namespace Enum {
-    export enum BlockShape { I, O, T, S, Z, J, L }
     export class CustomBlockShape {
         static get length() : number {
             let i = 0;
@@ -199,7 +198,7 @@ class ColorPalette {
 }
 
 class BlockTheme {
-    constructor(name:string|undefined,data:Record<Enum.BlockShape|number,Color>) {
+    constructor(name:string|undefined,data:Record<string,Color>) {
         this.name = name;
         this.Data = data;
     }
@@ -207,7 +206,7 @@ class BlockTheme {
     get Name() : string|undefined {
         return this.Name;
     }
-    readonly Data:Record<Enum.BlockShape|number,Color>;
+    readonly Data:Record<string,Color>;
     private enabled:boolean = false;
     get Enabled() : boolean {
         return this.enabled;
@@ -352,6 +351,44 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 type easeStyle = "Linear"|"Sinusoidal"|"Quadratic"|"Cubic"|"Quartic"|"Quintic"|"Circular"|"Exponential"|"Back"|"Bounce"|"Elastic";
 type easeDir = "In"|"Out"|"InOut";
 
+class FeedtapeArray<T> {
+    constructor(length:number) {
+        this.data = new Array(length);
+        this.data.fill(undefined);
+        Object.seal(this.data);
+    }
+    private data:Array<T>;
+    get length() : number {
+        return this.data.length;
+    }
+    private feed() : void {
+        for (let i=0; i<this.length-1; i++)
+            this.data[i] = this.data[i+1];
+    }
+    push(value:T) : void {
+        this.feed();
+        this.data[this.length-1] = value;
+    }
+    get(index:number) : T {
+        return this.data[index];
+    }
+    set(index:number,value:T) {
+        this.data[index] = value;
+    }
+    fill(value:T|(()=>T),startIndex:number=0,endIndex:number=this.length) : void {
+        for (let i=startIndex; i<endIndex; i++)
+            this.data[i] = typeof value === "function"? (value as (()=>T))() : value;
+    }
+    toString() : string {
+        let s = "";
+        for (const [i, val] of this.data.entries())
+            if (i !== 0)
+                s+=`, ${val}`;
+            else s+=`${val}`;
+        return s;
+    }
+}
+
 class Game {
     static DisableGrid:boolean = false;
     static AnimMoveTime:number = 60;
@@ -373,13 +410,13 @@ class Game {
     static KeyBinds:Record<string,string> = {};
     static BlockThemes:Record<string,BlockTheme> = {
         "Default": new BlockTheme(undefined,{
-            [Enum.BlockShape.I]: Color.fromHex("#91d7e3"),
-            [Enum.BlockShape.J]: Color.fromHex("#eed49f"),
-            [Enum.BlockShape.L]: Color.fromHex("#c6a0f6"),
-            [Enum.BlockShape.O]: Color.fromHex("#a6da95"),
-            [Enum.BlockShape.S]: Color.fromHex("#ed8796"),
-            [Enum.BlockShape.T]: Color.fromHex("#b7bdf8"),
-            [Enum.BlockShape.Z]: Color.fromHex("#f5a97f")
+            "I": Color.fromHex("#91d7e3"),
+            "J": Color.fromHex("#eed49f"),
+            "L": Color.fromHex("#c6a0f6"),
+            "O": Color.fromHex("#a6da95"),
+            "S": Color.fromHex("#ed8796"),
+            "T": Color.fromHex("#b7bdf8"),
+            "Z": Color.fromHex("#f5a97f")
         })
     };
     static UIThemes:Record<string,UITheme> = {
@@ -523,13 +560,23 @@ class Game {
         if (Game._running) return;
         Game._running = true;
         Game.TogglePause(false);
+        Game.blockFeed = new FeedtapeArray(2);
+        Game.blockFeed.fill(Game.randBlock,1);
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock.Draw();
         if (Game._thread_id !== null) clearInterval(Game._thread_id);
         Game._thread_id = setInterval(Game.GameTick,Game.Speed);
     }
+    private static blockFeed:FeedtapeArray<Block>;
+    private static randBlock() : Block {
+        return Utils.PickRandomFromDict(Blocks);
+    }
     static RandomBlock() : BlockInstance {
-        return new BlockInstance(Utils.PickRandomFromDict(Blocks));
+        this.blockFeed.push(this.randBlock());
+        return new BlockInstance(this.blockFeed.get(0));
+    }
+    static get NextBlock() : Block {
+        return this.blockFeed.get(this.blockFeed.length-1);
     }
     static DrawGrid() {
         Game.GridDrawn = true;
@@ -759,7 +806,6 @@ function UpdateSettingsBuffer(k:string, data:Record<string,string[]|HTMLInputEle
 function WriteSettingsBuffer() : void {
     for (const [k,v] of SettingsBuffer.entries()) {
         setAttr(Game,k,v.value);
-        console.log(v.funcs);
         if (v.funcs && v.funcs.length !== 0) {
             for (const f of v.funcs) {
                 let x:Function|undefined = getAttr(Game,f);
@@ -846,12 +892,17 @@ class BlockData {
 }
 
 class Block {
-    constructor(blockShapes:number[][][], blockData:BlockData) {
+    constructor(blockShapes:number[][][], blockData:BlockData, symbol:string) {
         this.Shapes = blockShapes;
         this.Data = blockData;
+        this.Symbol = symbol;
     }
     readonly Shapes:number[][][];
     readonly Data:BlockData;
+    readonly Symbol:string
+    toString() : string {
+        return this.Symbol;
+    }
 }
 
 type xyObj = {
@@ -860,7 +911,7 @@ type xyObj = {
 };
 class BlockInstance extends Block {
     constructor(block:Block) {
-        super(block.Shapes, block.Data);
+        super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width/2-this.CurrentShape[0].length/2);
         this.targetPos = {x:this._x, y:this._y};
     }
@@ -1012,8 +1063,8 @@ class BlockInstance extends Block {
     }
 }
 
-const Blocks:Record<Enum.BlockShape|number,Block> = {
-    [Enum.BlockShape.I]: new Block(
+const Blocks:Record<string,Block> = {
+    "I": new Block(
         [
             [
                 [0,0,0,0],
@@ -1040,9 +1091,9 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [0,1,0,0]
             ]
         ],
-        new BlockData("#91d7e3")
+        new BlockData("#91d7e3"), "I"
     ),
-    [Enum.BlockShape.O]: new Block(
+    "O": new Block(
         [
             [
                 [1,1],
@@ -1061,9 +1112,9 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [1,1]
             ]
         ],
-        new BlockData("#eed49f")
+        new BlockData("#eed49f"), "O"
     ),
-    [Enum.BlockShape.T]: new Block(
+    "T": new Block(
         [
             [
                 [0,1,0],
@@ -1086,9 +1137,9 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [0,1,0]
             ]
         ],
-        new BlockData("#c6a0f6")
+        new BlockData("#c6a0f6"), "T"
     ),
-    [Enum.BlockShape.S]: new Block(
+    "S": new Block(
         [
             [
                 [0,1,1],
@@ -1111,9 +1162,9 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [0,0,1]
             ]
         ],
-        new BlockData("#a6da95")
+        new BlockData("#a6da95"), "S"
     ),
-    [Enum.BlockShape.Z]: new Block(
+    "Z": new Block(
         [
             [
                 [1,1,0],
@@ -1136,9 +1187,9 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [1,0,0]
             ]
         ],
-        new BlockData("#ed8796")
+        new BlockData("#ed8796"), "Z"
     ),
-    [Enum.BlockShape.J]: new Block(
+    "J": new Block(
         [
             [
                 [1,0,0],
@@ -1161,9 +1212,9 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [1,1,0]
             ]
         ],
-        new BlockData("#b7bdf8")
+        new BlockData("#b7bdf8"), "J"
     ),
-    [Enum.BlockShape.L]: new Block(
+    "L": new Block(
         [
             [
                 [0,0,1],
@@ -1186,7 +1237,7 @@ const Blocks:Record<Enum.BlockShape|number,Block> = {
                 [0,1,0]
             ]
         ],
-        new BlockData("#f5a97f")
+        new BlockData("#f5a97f"), "L"
     )
 }
 

@@ -56,16 +56,6 @@ function setAttr(instance, attr, value) {
 }
 export var Enum;
 (function (Enum) {
-    let BlockShape;
-    (function (BlockShape) {
-        BlockShape[BlockShape["I"] = 0] = "I";
-        BlockShape[BlockShape["O"] = 1] = "O";
-        BlockShape[BlockShape["T"] = 2] = "T";
-        BlockShape[BlockShape["S"] = 3] = "S";
-        BlockShape[BlockShape["Z"] = 4] = "Z";
-        BlockShape[BlockShape["J"] = 5] = "J";
-        BlockShape[BlockShape["L"] = 6] = "L";
-    })(BlockShape = Enum.BlockShape || (Enum.BlockShape = {}));
     class CustomBlockShape {
         static get length() {
             let i = 0;
@@ -392,6 +382,44 @@ class Color {
 // Posted by Dan Dascalescu, modified by community. See post 'Timeline' for change history
 // Retrieved 2026-03-18, License - CC BY-SA 4.0
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+class FeedtapeArray {
+    constructor(length) {
+        this.data = new Array(length);
+        this.data.fill(undefined);
+        Object.seal(this.data);
+    }
+    data;
+    get length() {
+        return this.data.length;
+    }
+    feed() {
+        for (let i = 0; i < this.length - 1; i++)
+            this.data[i] = this.data[i + 1];
+    }
+    push(value) {
+        this.feed();
+        this.data[this.length - 1] = value;
+    }
+    get(index) {
+        return this.data[index];
+    }
+    set(index, value) {
+        this.data[index] = value;
+    }
+    fill(value, startIndex = 0, endIndex = this.length) {
+        for (let i = startIndex; i < endIndex; i++)
+            this.data[i] = typeof value === "function" ? value() : value;
+    }
+    toString() {
+        let s = "";
+        for (const [i, val] of this.data.entries())
+            if (i !== 0)
+                s += `, ${val}`;
+            else
+                s += `${val}`;
+        return s;
+    }
+}
 class Game {
     static DisableGrid = false;
     static AnimMoveTime = 60;
@@ -413,13 +441,13 @@ class Game {
     static KeyBinds = {};
     static BlockThemes = {
         "Default": new BlockTheme(undefined, {
-            [Enum.BlockShape.I]: Color.fromHex("#91d7e3"),
-            [Enum.BlockShape.J]: Color.fromHex("#eed49f"),
-            [Enum.BlockShape.L]: Color.fromHex("#c6a0f6"),
-            [Enum.BlockShape.O]: Color.fromHex("#a6da95"),
-            [Enum.BlockShape.S]: Color.fromHex("#ed8796"),
-            [Enum.BlockShape.T]: Color.fromHex("#b7bdf8"),
-            [Enum.BlockShape.Z]: Color.fromHex("#f5a97f")
+            "I": Color.fromHex("#91d7e3"),
+            "J": Color.fromHex("#eed49f"),
+            "L": Color.fromHex("#c6a0f6"),
+            "O": Color.fromHex("#a6da95"),
+            "S": Color.fromHex("#ed8796"),
+            "T": Color.fromHex("#b7bdf8"),
+            "Z": Color.fromHex("#f5a97f")
         })
     };
     static UIThemes = {
@@ -560,14 +588,25 @@ class Game {
             return;
         Game._running = true;
         Game.TogglePause(false);
+        Game.blockFeed = new FeedtapeArray(2);
+        Game.blockFeed.fill(Game.randBlock, 1);
+        console.log(Game.blockFeed.toString());
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock.Draw();
         if (Game._thread_id !== null)
             clearInterval(Game._thread_id);
         Game._thread_id = setInterval(Game.GameTick, Game.Speed);
     }
+    static blockFeed;
+    static randBlock() {
+        return Utils.PickRandomFromDict(Blocks);
+    }
     static RandomBlock() {
-        return new BlockInstance(Utils.PickRandomFromDict(Blocks));
+        this.blockFeed.push(this.randBlock());
+        return new BlockInstance(this.blockFeed.get(0));
+    }
+    static get NextBlock() {
+        return this.blockFeed.get(this.blockFeed.length - 1);
     }
     static DrawGrid() {
         Game.GridDrawn = true;
@@ -709,6 +748,8 @@ class Game {
         await Game.handleClears();
         Game.RedrawCanvas();
         Game.CurrentBlock = Game.RandomBlock();
+        console.log(Game.blockFeed.toString());
+        console.log(Game.NextBlock.toString());
         if (!Game.CurrentBlock.IsValidPosition()) {
             Game.Reset();
         }
@@ -897,16 +938,21 @@ class BlockData {
     Color;
 }
 class Block {
-    constructor(blockShapes, blockData) {
+    constructor(blockShapes, blockData, symbol) {
         this.Shapes = blockShapes;
         this.Data = blockData;
+        this.Symbol = symbol;
     }
     Shapes;
     Data;
+    Symbol;
+    toString() {
+        return this.Symbol;
+    }
 }
 class BlockInstance extends Block {
     constructor(block) {
-        super(block.Shapes, block.Data);
+        super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width / 2 - this.CurrentShape[0].length / 2);
         this.targetPos = { x: this._x, y: this._y };
     }
@@ -1072,7 +1118,7 @@ class BlockInstance extends Block {
     }
 }
 const Blocks = {
-    [Enum.BlockShape.I]: new Block([
+    "I": new Block([
         [
             [0, 0, 0, 0],
             [1, 1, 1, 1],
@@ -1097,8 +1143,8 @@ const Blocks = {
             [0, 1, 0, 0],
             [0, 1, 0, 0]
         ]
-    ], new BlockData("#91d7e3")),
-    [Enum.BlockShape.O]: new Block([
+    ], new BlockData("#91d7e3"), "I"),
+    "O": new Block([
         [
             [1, 1],
             [1, 1]
@@ -1115,8 +1161,8 @@ const Blocks = {
             [1, 1],
             [1, 1]
         ]
-    ], new BlockData("#eed49f")),
-    [Enum.BlockShape.T]: new Block([
+    ], new BlockData("#eed49f"), "O"),
+    "T": new Block([
         [
             [0, 1, 0],
             [1, 1, 1],
@@ -1137,8 +1183,8 @@ const Blocks = {
             [1, 1, 0],
             [0, 1, 0]
         ]
-    ], new BlockData("#c6a0f6")),
-    [Enum.BlockShape.S]: new Block([
+    ], new BlockData("#c6a0f6"), "T"),
+    "S": new Block([
         [
             [0, 1, 1],
             [1, 1, 0],
@@ -1159,8 +1205,8 @@ const Blocks = {
             [0, 1, 1],
             [0, 0, 1]
         ]
-    ], new BlockData("#a6da95")),
-    [Enum.BlockShape.Z]: new Block([
+    ], new BlockData("#a6da95"), "S"),
+    "Z": new Block([
         [
             [1, 1, 0],
             [0, 1, 1],
@@ -1181,8 +1227,8 @@ const Blocks = {
             [1, 1, 0],
             [1, 0, 0]
         ]
-    ], new BlockData("#ed8796")),
-    [Enum.BlockShape.J]: new Block([
+    ], new BlockData("#ed8796"), "Z"),
+    "J": new Block([
         [
             [1, 0, 0],
             [1, 1, 1],
@@ -1203,8 +1249,8 @@ const Blocks = {
             [0, 1, 0],
             [1, 1, 0]
         ]
-    ], new BlockData("#b7bdf8")),
-    [Enum.BlockShape.L]: new Block([
+    ], new BlockData("#b7bdf8"), "J"),
+    "L": new Block([
         [
             [0, 0, 1],
             [1, 1, 1],
@@ -1225,7 +1271,7 @@ const Blocks = {
             [0, 1, 0],
             [0, 1, 0]
         ]
-    ], new BlockData("#f5a97f"))
+    ], new BlockData("#f5a97f"), "L")
 };
 class ModEngine {
     static ModList = {};
