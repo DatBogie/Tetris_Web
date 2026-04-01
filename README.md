@@ -2,11 +2,23 @@
 
 APCSP 2026 Create Task Project
 
+## Modding Links
+
+- See the [Wiki](about:blank)
+- See the [Example Mod](./test-mod.tetrismod.jsonc)
+- [Open the Toolkit](./Modding/index.html)
+
 ## License
 
 This project is licensed under the [MIT License](https://raw.githubusercontent.com/DatBogie/Tetris_Web/refs/heads/Modding/LICENSE).
 
 ## Attributions
+
+| Name                    | License                                                                                    | Author                                      | Source                                                   | Usage                   | Function           |
+| -                       | -                                                                                          | -                                           | -                                                        | -                       | -                  |
+| Catppuccin Macchiato    | [MIT](https://raw.githubusercontent.com/catppuccin/catppuccin/refs/heads/main/LICENSE)     | [Catppuccin](https://github.com/catppuccin) | [Website](https://catppuccin.com/palette)                | Default Theme           | Color Palette      |
+| Catppuccin Latte        | [MIT](https://raw.githubusercontent.com/catppuccin/catppuccin/refs/heads/main/LICENSE)     | [Catppuccin](https://github.com/catppuccin) | [Website](https://catppuccin.com/palette)                | Modded Theme            | Color Palette      |
+| `hslToRgb()`            |                                                                                            | [mjackson](https://github.com/mjackson)     | [GitHub Gists](https://gist.github.com/mjackson/5311256) | Method of `Color` class | Convert HSL to RGB |
 
 For now, see [comments](./index.ts).
 

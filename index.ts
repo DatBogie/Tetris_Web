@@ -1,6 +1,6 @@
 import { sfxr } from "./Modules/jsfxr.js"
 import click from "./Sounds/click.json" with { type: 'json' };
-import { Tween, Easing, Group, update } from "@tweenjs/tween.js";
+import { Tween, Easing } from "@tweenjs/tween.js";
 
 const clickWar = document.getElementById("click-req");
 clickWar?.addEventListener("click",()=>{
