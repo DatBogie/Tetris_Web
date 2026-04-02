@@ -589,11 +589,13 @@ class Game {
         }
         Game.CurrentBlock?.Draw();
         Game.HoldCanvas.ClearCanvas();
-        // Game.DrawGrid(Game.HoldCanvas,Enum.GridMode.BG);
         if (!Game.heldBlock) return;
         const block = new BlockInstance(Game.heldBlock).Clone();
-        BlockInstance.Draw(block,Game.HoldCanvas,Math.ceil(Game.Width/2),Math.ceil(Game.Height/2),true);
-        Game.DrawGrid(Game.HoldCanvas,Enum.GridMode.Grid,block.Width,block.Height,Math.ceil(Game.Width/2),Math.ceil(Game.Height/2));
+        BlockInstance.Draw(block,Game.HoldCanvas,0,Game.Height/2,true);
+        if (!Game.DisableGrid) {
+            Game.HoldCanvas.Context.strokeStyle = "#18192680";
+            BlockInstance.Draw(block,Game.HoldCanvas,0,Game.Height/2,true,true);
+        }
     }
     static RandomBlock() : BlockInstance|undefined {
         Game.blockFeed.push(Game.randBlock());
@@ -1051,16 +1053,20 @@ class BlockInstance extends Block {
         this.Draw();
         return true;
     }
-    static Draw(block:BlockInstance,canvas?:Canvas2D,x?:number,y?:number,drawColor?:boolean) {
+    static Draw(block:BlockInstance,canvas?:Canvas2D,x?:number,y?:number,drawColor?:boolean,outline?:boolean,width?:number,height?:number) {
         if (!block.isFake) return;
-        block._draw(canvas,x,y,drawColor);
+        block._draw(canvas,x,y,drawColor,outline,width,height);
     }
-    private _draw(canvas:Canvas2D=Game.BlockCanvas, x:number=this._x, y:number=this._y,drawColor:boolean=false) {
+    private _draw(canvas:Canvas2D=Game.BlockCanvas, x:number=this._x, y:number=this._y,drawColor:boolean=false,outline:boolean=false,width:number=1,height:number=1) {
         if (drawColor) canvas.Context.fillStyle = this.Data.Color.RGBA;
         for (const [oY, row] of this.CurrentShape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0) continue;
-                canvas.Context.fillRect(Game.GameOffset.X+x*Game.PixelSize+oX*Game.PixelSize,Game.GameOffset.Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize,Game.PixelSize);
+                const [_x,_y,_w,_h] = [Game.GameOffset.X+x*Game.PixelSize+oX*Game.PixelSize,Game.GameOffset.Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize*width,Game.PixelSize*height];
+                if (!outline)
+                    canvas.Context.fillRect(_x,_y,_w,_h);
+                else
+                    canvas.Context.strokeRect(_x,_y,_w,_h);
             }
         }
     }
