@@ -494,7 +494,7 @@ class Game {
     static SpeedMul:number = 1.0;
     static readonly BaseSpeedMs:number = 1000.0;
     static GhostBlockOpacity:number = 0.25;
-    static AnimGhostBlock:boolean = false;
+    static AnimGhostBlock:boolean = true;
     static RawBlockOpacity:number = 0.0;
     static Paused:boolean = true;
     static CurrentBlock?:BlockInstance;
@@ -787,7 +787,7 @@ function clamp(x:number,min:number,max:number) : number {
     return Math.min(Math.max(x,min),max);
 }
 
-function dummy(x:any) : any {
+function dummy(x?:any) : any {
     return x;
 }
 
@@ -937,6 +937,9 @@ class BlockData {
 
 class Block {
     constructor(blockShapes:number[][][], blockData:BlockData, symbol:string) {
+        if (blockShapes.length < 4)
+            for (let i=blockShapes.length; i<4; i++)
+                blockShapes[i] = blockShapes[i-1];
         this.Shapes = blockShapes;
         this.Data = blockData;
         this.Symbol = symbol;
@@ -957,6 +960,7 @@ class BlockInstance extends Block {
     constructor(block:Block) {
         super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width/2-this.CurrentShape[0].length/2);
+        this._y = 0-this.HighestPoint.y;
         this.targetPos = {x:this._x, y:this._y};
     }
     private _x:number = 0;
@@ -977,7 +981,7 @@ class BlockInstance extends Block {
         return this.Shapes[this.Rotation];
     }
     Rotation:number = 0;
-    IsValidPosition(x:number=this.targetPos.x, y:number=this.targetPos.y, shape:number[][]=this.CurrentShape) : boolean {
+    IsValidPosition(x:number=this.targetPos?.x ?? 0, y:number=this.targetPos?.y ?? 0, shape:number[][]=this.CurrentShape) : boolean {
         for (const [oY, row] of shape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0) continue;
@@ -989,7 +993,7 @@ class BlockInstance extends Block {
         return true;
     }
     private tween:Tween = new Tween([]);
-    private targetPos:xyObj;
+    private targetPos:xyObj|undefined;
     private dropping:boolean = false;
     private isFake:boolean = false;
     Clone() : BlockInstance {
@@ -1009,7 +1013,7 @@ class BlockInstance extends Block {
     }
     async Move(x:number=0, y:number=0,isInstantDrop:boolean=false) : Promise<boolean|undefined> {
         if (this.dropping) return undefined;
-        x+=this.targetPos.x; y+=this.targetPos.y;
+        x+=this.targetPos?.x ?? 0; y+=this.targetPos?.y ?? 0;
         if (!this.IsValidPosition(x,y)) return !this.dropping? false : undefined;
         if (isInstantDrop) this.dropping = true;
         this.targetPos = {x:x,y:y};
@@ -1089,30 +1093,30 @@ class BlockInstance extends Block {
         // Draw ghost block
         if (Game.GhostBlockOpacity > 0 && canvas === Game.BlockCanvas && this.LowestValidY > this._y) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.GhostBlockOpacity);
-            this._draw(canvas,!Game.AnimGhostBlock? this.targetPos.x : this._x,this.LowestValidY);
+            this._draw(canvas,!Game.AnimGhostBlock? this.targetPos?.x : this._x,this.LowestValidY);
         }
         // Draw accublock
         if (Game.RawBlockOpacity > 0 && canvas === Game.BlockCanvas) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.RawBlockOpacity);
-            this._draw(canvas,this.targetPos.x,this.targetPos.y);
+            this._draw(canvas,this.targetPos?.x,this.targetPos?.y);
         }
     }
     private stamping:boolean = false;
     async Stamp() {
         if (this.dropping || this.stamping) return;
         this.stamping = true;
-        [this._x, this._y] = [this.targetPos.x, this.targetPos.y];
+        [this._x, this._y] = [this.targetPos?.x ?? 0, this.targetPos?.y ?? 0];
         this.Draw(Game.StaleCanvas);
         Game.WriteShape(this, this._x, this._y, this.CurrentShape);
         await Game.BlockStamped(this);
         this.stamping = false;
     }
     async InstantDrop() {
-        await this.Move(0,this.LowestValidY-(this.targetPos.y),true);
+        await this.Move(0,this.LowestValidY-(this.targetPos?.y ?? 0),true);
         await this.Stamp();
     }
     private get LowestValidY() : number {
-        let y = this.targetPos.y;
+        let y = this.targetPos?.y ?? 0;
         while (true) {
             y++;
             if (!this.IsValidPosition(undefined,y)) {
@@ -1122,10 +1126,20 @@ class BlockInstance extends Block {
         }
         return y;
     }
-    private get LowestPoint() : {x:number, y:number} {
+    private get HighestPoint() : xyObj {
+        let highestPoint = { x: 0, y: 0 };
+        for (const [oY, row] of this.CurrentShape.entries()) {
+            for (const [oX, col] of row.entries()) {
+                if (col === 0) continue;
+                return { x: oX, y: oY };
+            }
+        }
+        return highestPoint;
+    }
+    private get LowestPoint() : xyObj {
         let lowestPoint = { x: 0, y: 0 };
         for (const [oY, row] of this.CurrentShape.entries()) {
-            if (oY < lowestPoint.y) continue;
+            if (oY < lowestPoint.y) break;
             for (const [oX, col] of row.entries()) {
                 if (col === 0) continue;
                 lowestPoint = { x: oX, y: oY };
@@ -1355,27 +1369,46 @@ function onResize() {
 
 window.addEventListener("click",loadSFX)
 
-function getRangeStep(step:number) {
-    if ()
+function getRangeStep(range:HTMLInputElement) {
+    const int:boolean = range.classList.contains("int");
+    let step = ((int? parseInt : parseFloat)(range.step)) || 1;
+    if (heldKeys.Shift)
+        step*=2;
+    return step;
+}
+function stepRange(range:HTMLInputElement,dir:number=1) : number {
+    const int:boolean = range.classList.contains("int");
+    return clamp((int? parseInt : parseFloat)(range.value)+(getRangeStep(range)*dir),(int? parseInt : parseFloat)(range.min),(int? parseInt : parseFloat)(range.max));
 }
 
+const heldKeys:Record<string,boolean> = {"Shift":false};
+
+window.addEventListener("keyup",event=>{
+    if (heldKeys[event.key] !== undefined)
+        heldKeys[event.key] = false;
+});
 window.addEventListener("keydown", async event=>{
+    if (heldKeys[event.key] !== undefined)
+        heldKeys[event.key] = true;
+    let eventKey = event.key;
+    if (eventKey === "Tab" && heldKeys.Shift)
+        eventKey = "ShiftTab";
     if (event.defaultPrevented || !__sfx_loaded) return;
     if (!Game.Running || Game.Paused) {
         if (document.activeElement?.classList.contains("keybind") && document.activeElement.textContent === "...")
             return event.preventDefault();
-        switch(event.key) {
+        switch(eventKey) {
             case "ArrowLeft":
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement) {
                     if ((PauseBtns[PauseMenuSel] as HTMLInputElement).type !== "range") {
                         return;
                     } else {
                         const val:HTMLInputElement = (PauseBtns[PauseMenuSel] as HTMLInputElement);
-                        const step:number = getRangeStep(parseFloat(val.step))
-                        val.value = clamp(parseFloat(val.value)-( || 1),parseFloat(val.min),parseFloat(val.max)).toString();
+                        val.value = stepRange(val,-1).toString();
                         return event.preventDefault();
                     }
                 }
+            case "ShiftTab":
             case "ArrowUp":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel,-1,0,PauseBtns.length-1);
                 return focusButton();
@@ -1385,10 +1418,11 @@ window.addEventListener("keydown", async event=>{
                         return;
                     } else {
                         const val:HTMLInputElement = (PauseBtns[PauseMenuSel] as HTMLInputElement);
-                        val.value = clamp(parseFloat(val.value)+(parseFloat(val.step) || 1),parseFloat(val.min),parseFloat(val.max)).toString();
+                        val.value = stepRange(val).toString();
                         return event.preventDefault();
                     }
                 }
+            case "Tab":
             case "ArrowDown":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel,1,0,PauseBtns.length-1);
                 return focusButton();
@@ -1555,6 +1589,7 @@ function preventKeyEvents(el:HTMLInputElement|HTMLElement) {
                 case "ArrowUp":
                 case "ArrowDown":
                     return event.preventDefault();
+                case "Tab":
                 case "ArrowLeft":
                 case "ArrowRight":
                     return !(el instanceof HTMLInputElement)? event.preventDefault() : undefined;

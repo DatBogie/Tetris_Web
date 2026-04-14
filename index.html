@@ -61,7 +61,7 @@
                             <summary class="center keyboard-selectable">Audio</summary>
                             <li class="details-content">
                                 <ul class="layout left-align">
-                                    <li><span>Audio Volume: </span><input id="settings-audio-vol" type="range" min="0" max="100" class="keyboard-selectable"><span id="settings-audio-vol-label" style="margin-left: 15px;"></span><span>&percnt;</span></li>
+                                    <li><span>Audio Volume: </span><input id="settings-audio-vol" type="range" min="0" max="100" class="keyboard-selectable int"><span id="settings-audio-vol-label" style="margin-left: 15px;"></span><span>&percnt;</span></li>
                                 </ul>
                             </li>
                         </details>
@@ -147,7 +147,12 @@
                     <button id="mods-back" class="keyboard-selectable modal-back">Back</button>
                 </div>
             </div>
-            <canvas id="hold" class="game-canvas" width="320" height="640"></canvas>
+            <div class="right-stack">
+                <div class="canvas-box">
+                    <h2>Hold</h2>
+                    <canvas id="hold" class="right-canvas" width="320" height="320"></canvas>
+                </div>
+            </div>
         </div>
     </div>
     <script type="module" src="index.js"></script>
