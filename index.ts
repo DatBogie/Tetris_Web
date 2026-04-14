@@ -26,6 +26,8 @@ function loadSFX() {
 
 function playSound(sound:jsfxrSound) : boolean {
     if (!__sfx_loaded) return false;
+    console.log(`vol: ${sound.volume}`)
+    // sound.volume = Game.AudioVol/100;
     sound.play();
     return true;
 }
@@ -867,8 +869,10 @@ RejectSettingsBuffer.Connect(()=>{
 });
 function handleSettings() : void {
     for (const [k, el] of Object.entries(Settings)) {
+        const label:HTMLElement|null = document.getElementById(el.id+"-label");
+        if (label) label.textContent = getAttr(Game,k);
         if (el instanceof HTMLInputElement) {
-            if (el.type === "number") {
+            if (el.type === "number" || el.type === "range") {
                 const min = parseFloat(el.min ?? "0");
                 const max = parseFloat(el.max ?? "100");
                 const defaultVal:number = getAttr(Game,k);
@@ -1373,15 +1377,17 @@ function getRangeStep(range:HTMLInputElement) {
     const int:boolean = range.classList.contains("int");
     let step = ((int? parseInt : parseFloat)(range.step)) || 1;
     if (heldKeys.Shift)
-        step*=2;
-    return step;
+        step = parseFloat(range.dataset.shiftStep ?? "") || (step*10);
+    if (heldKeys.Control || heldKeys.Meta)
+        step=Math.abs(parseFloat(range.max))+Math.abs(parseFloat(range.min));
+    return (int? Math.round : dummy)(step);
 }
 function stepRange(range:HTMLInputElement,dir:number=1) : number {
     const int:boolean = range.classList.contains("int");
     return clamp((int? parseInt : parseFloat)(range.value)+(getRangeStep(range)*dir),(int? parseInt : parseFloat)(range.min),(int? parseInt : parseFloat)(range.max));
 }
 
-const heldKeys:Record<string,boolean> = {"Shift":false};
+const heldKeys:Record<string,boolean> = { "Shift":false, "Control":false, "Meta":false };
 
 window.addEventListener("keyup",event=>{
     if (heldKeys[event.key] !== undefined)
@@ -1404,7 +1410,8 @@ window.addEventListener("keydown", async event=>{
                         return;
                     } else {
                         const val:HTMLInputElement = (PauseBtns[PauseMenuSel] as HTMLInputElement);
-                        val.value = stepRange(val,-1).toString();
+                        val.valueAsNumber = stepRange(val,-1);
+                        val.dispatchEvent(new Event("change"));
                         return event.preventDefault();
                     }
                 }
@@ -1418,7 +1425,8 @@ window.addEventListener("keydown", async event=>{
                         return;
                     } else {
                         const val:HTMLInputElement = (PauseBtns[PauseMenuSel] as HTMLInputElement);
-                        val.value = stepRange(val).toString();
+                        val.valueAsNumber = stepRange(val);
+                        val.dispatchEvent(new Event("change"));
                         return event.preventDefault();
                     }
                 }

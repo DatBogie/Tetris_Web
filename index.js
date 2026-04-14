@@ -22,6 +22,8 @@ function loadSFX() {
 function playSound(sound) {
     if (!__sfx_loaded)
         return false;
+    console.log(`vol: ${sound.volume}`);
+    // sound.volume = Game.AudioVol/100;
     sound.play();
     return true;
 }
@@ -915,8 +917,11 @@ RejectSettingsBuffer.Connect(() => {
 });
 function handleSettings() {
     for (const [k, el] of Object.entries(Settings)) {
+        const label = document.getElementById(el.id + "-label");
+        if (label)
+            label.textContent = getAttr(Game, k);
         if (el instanceof HTMLInputElement) {
-            if (el.type === "number") {
+            if (el.type === "number" || el.type === "range") {
                 const min = parseFloat(el.min ?? "0");
                 const max = parseFloat(el.max ?? "100");
                 const defaultVal = getAttr(Game, k);
@@ -1367,8 +1372,7 @@ const Blocks = {
             [0, 1, 0],
             [0, 1, 0]
         ]
-    ], new BlockData("#f5a97f"), "L"),
-    ".": new Block([[[1]]], new BlockData("#ffffff"), ".")
+    ], new BlockData("#f5a97f"), "L")
 };
 class ModEngine {
     static ModList = {};
@@ -1407,7 +1411,20 @@ function onResize() {
 // resizeObserver.observe(document.body);
 // window.addEventListener("resize",onResize);
 window.addEventListener("click", loadSFX);
-const heldKeys = { "Shift": false };
+function getRangeStep(range) {
+    const int = range.classList.contains("int");
+    let step = ((int ? parseInt : parseFloat)(range.step)) || 1;
+    if (heldKeys.Shift)
+        step = parseFloat(range.dataset.shiftStep ?? "") || (step * 10);
+    if (heldKeys.Control || heldKeys.Meta)
+        step = Math.abs(parseFloat(range.max)) + Math.abs(parseFloat(range.min));
+    return (int ? Math.round : dummy)(step);
+}
+function stepRange(range, dir = 1) {
+    const int = range.classList.contains("int");
+    return clamp((int ? parseInt : parseFloat)(range.value) + (getRangeStep(range) * dir), (int ? parseInt : parseFloat)(range.min), (int ? parseInt : parseFloat)(range.max));
+}
+const heldKeys = { "Shift": false, "Control": false, "Meta": false };
 window.addEventListener("keyup", event => {
     if (heldKeys[event.key] !== undefined)
         heldKeys[event.key] = false;
@@ -1425,14 +1442,34 @@ window.addEventListener("keydown", async (event) => {
             return event.preventDefault();
         switch (eventKey) {
             case "ArrowLeft":
-                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    return;
+                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement) {
+                    if (PauseBtns[PauseMenuSel].type !== "range") {
+                        return;
+                    }
+                    else {
+                        const val = PauseBtns[PauseMenuSel];
+                        val.valueAsNumber = stepRange(val, -1);
+                        val.dispatchEvent(new Event("change"));
+                        return event.preventDefault();
+                    }
+                }
+            case "ShiftTab":
             case "ArrowUp":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, -1, 0, PauseBtns.length - 1);
                 return focusButton();
             case "ArrowRight":
-                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    return;
+                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement) {
+                    if (PauseBtns[PauseMenuSel].type !== "range") {
+                        return;
+                    }
+                    else {
+                        const val = PauseBtns[PauseMenuSel];
+                        val.valueAsNumber = stepRange(val);
+                        val.dispatchEvent(new Event("change"));
+                        return event.preventDefault();
+                    }
+                }
+            case "Tab":
             case "ArrowDown":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, 1, 0, PauseBtns.length - 1);
                 return focusButton();
