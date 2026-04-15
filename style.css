@@ -54,6 +54,27 @@ body {
     width: 50vh;
 }
 
+#game {
+    outline: 1px solid var(--olc);
+}
+
+.right-canvas {
+    background-color: var(--mantle);
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 5px;
+    border-color: var(--olc);
+}
+
+@keyframes right-canvas-feedback {
+    0% {
+        scale: .35;
+    }
+    100% {
+        scale: 1;
+    }
+}
+
 .game-canvas, .modal {
     position: absolute;
     top: 0;
@@ -69,14 +90,17 @@ body {
     top: 0;
     width: calc((100vw - 50vh) / 2);
     height: 100vh;
+    flex-direction: column;
+    justify-content: start;
 }
 
 .right-canvas {
     aspect-ratio: 1/1;
     width: 100%;
+    max-width: 400px;
 }
 
-.game-canvas.paused, .modal.active {
+.game-canvas.paused, .modal.active, .right-stack.paused {
     filter: blur(16px) saturate(120%) brightness(80%);
 }
 

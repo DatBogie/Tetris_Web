@@ -505,6 +505,7 @@ class Game {
     static readonly BlockCanvas:Canvas2D = new Canvas2D(document.getElementById("block") as HTMLCanvasElement);
     static readonly StaleCanvas:Canvas2D = new Canvas2D(document.getElementById("stale") as HTMLCanvasElement);
     static readonly HoldCanvas:Canvas2D = new Canvas2D(document.getElementById("hold") as HTMLCanvasElement);
+    static readonly NextCanvas:Canvas2D = new Canvas2D(document.getElementById("next") as HTMLCanvasElement);
     private static Level:Enum.Level;
     static get Running() : boolean {
         return Game._running
@@ -514,17 +515,23 @@ class Game {
     private static _time:number;
     private static _thread_id:number|null;
     private static GridDrawn:boolean = false;
-    static get CenterPoint() : Point {
+    private static _centerPoint(canvas:Canvas2D) : Point {
         return new Point(
-            Game.GameCanvas.Canvas.width/2,
-            Game.GameCanvas.Canvas.height/2,
+            canvas.Canvas.width/2,
+            canvas.Canvas.height/2
+        );
+    }
+    static get CenterPoint() : Point {
+        return Game._centerPoint(Game.GameCanvas);
+    }
+    static CanvasOffset(canvas:Canvas2D) {
+        return new Point(
+            Game._centerPoint(canvas).X-(Game.Width*Game.PixelSize)/2,
+            Game._centerPoint(canvas).Y-(Game.Height*Game.PixelSize)/2,
         );
     }
     static get GameOffset() : Point {
-        return new Point(
-            Game.CenterPoint.X-(Game.Width*Game.PixelSize)/2,
-            Game.CenterPoint.Y-(Game.Height*Game.PixelSize)/2,
-        );
+        return Game.CanvasOffset(Game.GameCanvas);
     }
     static get Speed() : number {
         return Game.BaseSpeedMs / Game.Level.Speed / Game.SpeedMul;
@@ -568,7 +575,7 @@ class Game {
         if (Game._running) return;
         Game._running = true;
         Game.TogglePause(false);
-        Game.blockFeed = new FeedtapeArray(2);
+        Game.blockFeed = new FeedtapeArray(4);
         Game.blockFeed.fill(Game.randBlock,1);
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock?.Draw();
@@ -596,11 +603,14 @@ class Game {
         Game.HoldCanvas.ClearCanvas();
         if (!Game.heldBlock) return;
         const block = new BlockInstance(Game.heldBlock).Clone();
-        BlockInstance.Draw(block,Game.HoldCanvas,0,Game.Height/2,true);
+        let [lY, hY] = [block.LowestPoint.y, block.HighestPoint.y];
+        if (lY === hY) hY = 0;
+        BlockInstance.Draw(block,Game.HoldCanvas,Game.Width/2-block.CurrentShape[0].length/2,(Game.Height/2)-(lY-hY),true); // Draw hold block
         if (!Game.DisableGrid) {
             Game.HoldCanvas.Context.strokeStyle = "#18192680";
-            BlockInstance.Draw(block,Game.HoldCanvas,0,Game.Height/2,true,true);
+            BlockInstance.Draw(block,Game.HoldCanvas,Game.Width/2-block.CurrentShape[0].length/2,(Game.Height/2)-(lY-hY),true,true);
         }
+        Game.HoldCanvas.Canvas.animate([{ scale:.9 },{ scale:1 }],{easing:"ease",duration:100});
     }
     static RandomBlock() : BlockInstance|undefined {
         Game.blockFeed.push(Game.randBlock());
@@ -763,7 +773,7 @@ class Game {
             document.getElementById("pause-ind")?.classList.add("paused");
         else
             document.getElementById("pause-ind")?.classList.remove("paused");
-        document.querySelectorAll(".game-canvas").forEach(canvas=>{
+        document.querySelectorAll(".game-canvas, .right-stack").forEach(canvas=>{
             if (Game.Paused)
                 canvas.classList.add("paused");
             else
@@ -1081,7 +1091,7 @@ class BlockInstance extends Block {
         for (const [oY, row] of this.CurrentShape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0) continue;
-                const [_x,_y,_w,_h] = [Game.GameOffset.X+x*Game.PixelSize+oX*Game.PixelSize,Game.GameOffset.Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize*width,Game.PixelSize*height];
+                const [_x,_y,_w,_h] = [Game.CanvasOffset(canvas).X+x*Game.PixelSize+oX*Game.PixelSize,Game.CanvasOffset(canvas).Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize*width,Game.PixelSize*height];
                 if (!outline)
                     canvas.Context.fillRect(_x,_y,_w,_h);
                 else
@@ -1130,7 +1140,7 @@ class BlockInstance extends Block {
         }
         return y;
     }
-    private get HighestPoint() : xyObj {
+    get HighestPoint() : xyObj {
         let highestPoint = { x: 0, y: 0 };
         for (const [oY, row] of this.CurrentShape.entries()) {
             for (const [oX, col] of row.entries()) {
@@ -1140,7 +1150,7 @@ class BlockInstance extends Block {
         }
         return highestPoint;
     }
-    private get LowestPoint() : xyObj {
+    get LowestPoint() : xyObj {
         let lowestPoint = { x: 0, y: 0 };
         for (const [oY, row] of this.CurrentShape.entries()) {
             if (oY < lowestPoint.y) break;
@@ -1554,8 +1564,7 @@ document.querySelectorAll("details").forEach(el=>{
 });
 
 const keyTranslationMap:Record<string,string> = {
-    " ": "Space",
-
+    " ": "Space"
 }
 function translateKey(k:string,reverse:boolean=false) : string {
     if (keyTranslationMap[k]) return keyTranslationMap[k];

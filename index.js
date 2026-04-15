@@ -546,6 +546,7 @@ class Game {
     static BlockCanvas = new Canvas2D(document.getElementById("block"));
     static StaleCanvas = new Canvas2D(document.getElementById("stale"));
     static HoldCanvas = new Canvas2D(document.getElementById("hold"));
+    static NextCanvas = new Canvas2D(document.getElementById("next"));
     static Level;
     static get Running() {
         return Game._running;
@@ -555,11 +556,17 @@ class Game {
     static _time;
     static _thread_id;
     static GridDrawn = false;
+    static _centerPoint(canvas) {
+        return new Point(canvas.Canvas.width / 2, canvas.Canvas.height / 2);
+    }
     static get CenterPoint() {
-        return new Point(Game.GameCanvas.Canvas.width / 2, Game.GameCanvas.Canvas.height / 2);
+        return Game._centerPoint(Game.GameCanvas);
+    }
+    static CanvasOffset(canvas) {
+        return new Point(Game._centerPoint(canvas).X - (Game.Width * Game.PixelSize) / 2, Game._centerPoint(canvas).Y - (Game.Height * Game.PixelSize) / 2);
     }
     static get GameOffset() {
-        return new Point(Game.CenterPoint.X - (Game.Width * Game.PixelSize) / 2, Game.CenterPoint.Y - (Game.Height * Game.PixelSize) / 2);
+        return Game.CanvasOffset(Game.GameCanvas);
     }
     static get Speed() {
         return Game.BaseSpeedMs / Game.Level.Speed / Game.SpeedMul;
@@ -605,7 +612,7 @@ class Game {
             return;
         Game._running = true;
         Game.TogglePause(false);
-        Game.blockFeed = new FeedtapeArray(2);
+        Game.blockFeed = new FeedtapeArray(4);
         Game.blockFeed.fill(Game.randBlock, 1);
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock?.Draw();
@@ -637,11 +644,15 @@ class Game {
         if (!Game.heldBlock)
             return;
         const block = new BlockInstance(Game.heldBlock).Clone();
-        BlockInstance.Draw(block, Game.HoldCanvas, 0, Game.Height / 2, true);
+        let [lY, hY] = [block.LowestPoint.y, block.HighestPoint.y];
+        if (lY === hY)
+            hY = 0;
+        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true); // Draw hold block
         if (!Game.DisableGrid) {
             Game.HoldCanvas.Context.strokeStyle = "#18192680";
-            BlockInstance.Draw(block, Game.HoldCanvas, 0, Game.Height / 2, true, true);
+            BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true, true);
         }
+        Game.HoldCanvas.Canvas.animate([{ scale: .9 }, { scale: 1 }], { easing: "ease", duration: 100 });
     }
     static RandomBlock() {
         Game.blockFeed.push(Game.randBlock());
@@ -816,7 +827,7 @@ class Game {
             document.getElementById("pause-ind")?.classList.add("paused");
         else
             document.getElementById("pause-ind")?.classList.remove("paused");
-        document.querySelectorAll(".game-canvas").forEach(canvas => {
+        document.querySelectorAll(".game-canvas, .right-stack").forEach(canvas => {
             if (Game.Paused)
                 canvas.classList.add("paused");
             else
@@ -1138,7 +1149,7 @@ class BlockInstance extends Block {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                const [_x, _y, _w, _h] = [Game.GameOffset.X + x * Game.PixelSize + oX * Game.PixelSize, Game.GameOffset.Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize * width, Game.PixelSize * height];
+                const [_x, _y, _w, _h] = [Game.CanvasOffset(canvas).X + x * Game.PixelSize + oX * Game.PixelSize, Game.CanvasOffset(canvas).Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize * width, Game.PixelSize * height];
                 if (!outline)
                     canvas.Context.fillRect(_x, _y, _w, _h);
                 else
@@ -1592,7 +1603,7 @@ document.querySelectorAll("details").forEach(el => {
     });
 });
 const keyTranslationMap = {
-    " ": "Space",
+    " ": "Space"
 };
 function translateKey(k, reverse = false) {
     if (keyTranslationMap[k])
