@@ -1,6 +1,5 @@
 declare type jsfxrSound = {
     play() : void;
-    volume:number;
 }
 
 declare module "jsfxr" {
