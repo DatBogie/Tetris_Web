@@ -1,4 +1,4 @@
-import { sfxr } from "./Modules/jsfxr.js";
+import { sfxr } from "jsfxr";
 import click from "./Sounds/click.json" with { type: 'json' };
 import { Tween, Easing } from "@tweenjs/tween.js";
 const clickWar = document.getElementById("click-req");
@@ -10,18 +10,42 @@ clickWar?.addEventListener("click", () => {
         clickWar?.remove();
     }, 600);
 });
+class Sound {
+    constructor(json) {
+        this.sound = sfxr.toAudio(json);
+        this.json = json;
+        this.vol = 1;
+        this.gain = json.sound_vol;
+    }
+    sound;
+    json;
+    vol;
+    gain;
+    play() {
+        this.sound.play();
+    }
+    get volume() {
+        return this.vol;
+    }
+    set volume(vol) {
+        this.vol = vol;
+        this.json.sound_vol = this.gain * vol;
+        this.sound = sfxr.toAudio(this.json);
+    }
+}
 var clickSound;
 var PauseMenuSel = 0;
 var PauseBtns = Array.from(document.querySelectorAll("#pause-btns > .keyboard-selectable"));
 var __sfx_loaded = false;
 function loadSFX() {
     __sfx_loaded = true;
-    clickSound = sfxr.toAudio(click);
+    clickSound = new Sound(click);
     window.removeEventListener("click", loadSFX);
 }
 function playSound(sound) {
     if (!__sfx_loaded)
         return false;
+    sound.volume = Game.AudioVol / 100;
     sound.play();
     return true;
 }
@@ -54,8 +78,14 @@ function getAttr(instance, attr) {
 function setAttr(instance, attr, value) {
     instance[attr] = value;
 }
-export var Enum;
+var Enum;
 (function (Enum) {
+    let GridMode;
+    (function (GridMode) {
+        GridMode[GridMode["BG"] = 0] = "BG";
+        GridMode[GridMode["Grid"] = 1] = "Grid";
+        GridMode[GridMode["Both"] = 2] = "Both";
+    })(GridMode = Enum.GridMode || (Enum.GridMode = {}));
     class CustomBlockShape {
         static get length() {
             let i = 0;
@@ -298,6 +328,9 @@ class Color {
         if (n.endsWith("deg")) {
             return (!retInt ? parseFloat : parseInt)(n) / 360;
         }
+        if (n.endsWith("turn")) {
+            return (!retInt ? parseFloat : parseInt)(n) * 180;
+        }
         if (n.endsWith("%")) {
             return (!retInt ? parseFloat : parseInt)(n) / 100;
         }
@@ -358,7 +391,8 @@ class Color {
             else
                 data = s.substring(4, s.length - 1).split(",", 3);
             h = Color.parseCSSNumber(data[0], true);
-            _s = Color.parseCSSNumber(data[0], true);
+            _s = Color.parseCSSNumber(data[1], true);
+            l = Color.parseCSSNumber(data[2], true);
             return Color.fromHSLA(h, _s, l, a);
         }
     }
@@ -421,6 +455,7 @@ class FeedtapeArray {
     }
 }
 class Game {
+    static AudioVol = 100;
     static DisableGrid = false;
     static AnimMoveTime = 60;
     static AnimDropTime = Game.AnimMoveTime * 2;
@@ -524,7 +559,7 @@ class Game {
     static SpeedMul = 1.0;
     static BaseSpeedMs = 1000.0;
     static GhostBlockOpacity = 0.25;
-    static AnimGhostBlock = false;
+    static AnimGhostBlock = true;
     static RawBlockOpacity = 0.0;
     static Paused = true;
     static CurrentBlock;
@@ -532,6 +567,8 @@ class Game {
     static GameCanvas = new Canvas2D(document.getElementById("game"));
     static BlockCanvas = new Canvas2D(document.getElementById("block"));
     static StaleCanvas = new Canvas2D(document.getElementById("stale"));
+    static HoldCanvas = new Canvas2D(document.getElementById("hold"));
+    static NextCanvas = new Canvas2D(document.getElementById("next"));
     static Level;
     static get Running() {
         return Game._running;
@@ -541,11 +578,17 @@ class Game {
     static _time;
     static _thread_id;
     static GridDrawn = false;
+    static _centerPoint(canvas) {
+        return new Point(canvas.Canvas.width / 2, canvas.Canvas.height / 2);
+    }
     static get CenterPoint() {
-        return new Point(Game.GameCanvas.Canvas.width / 2, Game.GameCanvas.Canvas.height / 2);
+        return Game._centerPoint(Game.GameCanvas);
+    }
+    static CanvasOffset(canvas) {
+        return new Point(Game._centerPoint(canvas).X - (Game.Width * Game.PixelSize) / 2, Game._centerPoint(canvas).Y - (Game.Height * Game.PixelSize) / 2);
     }
     static get GameOffset() {
-        return new Point(Game.CenterPoint.X - (Game.Width * Game.PixelSize) / 2, Game.CenterPoint.Y - (Game.Height * Game.PixelSize) / 2);
+        return Game.CanvasOffset(Game.GameCanvas);
     }
     static get Speed() {
         return Game.BaseSpeedMs / Game.Level.Speed / Game.SpeedMul;
@@ -566,6 +609,9 @@ class Game {
         Game.BlockCanvas.ClearCanvas();
         Game.StaleCanvas.ClearCanvas();
         Game._data = [];
+        Game.heldBlock = undefined;
+        Game.holdCooldown = false;
+        Game.HoldCanvas.ClearCanvas();
         for (let y = 0; y < Game.Height; y++) {
             Game._data[y] = [];
             for (let x = 0; x < Game.Width; x++)
@@ -578,7 +624,7 @@ class Game {
     static async GameTick() {
         if (Game.Paused)
             return;
-        const moveRes = await Game.CurrentBlock.Move(0, 1);
+        const moveRes = await Game.CurrentBlock?.Move(0, 1);
         if (Game.CurrentBlock && moveRes === false) {
             await Game.CurrentBlock.Stamp();
         }
@@ -588,10 +634,10 @@ class Game {
             return;
         Game._running = true;
         Game.TogglePause(false);
-        Game.blockFeed = new FeedtapeArray(2);
+        Game.blockFeed = new FeedtapeArray(4);
         Game.blockFeed.fill(Game.randBlock, 1);
         Game.CurrentBlock = Game.RandomBlock();
-        Game.CurrentBlock.Draw();
+        Game.CurrentBlock?.Draw();
         if (Game._thread_id !== null)
             clearInterval(Game._thread_id);
         Game._thread_id = setInterval(Game.GameTick, Game.Speed);
@@ -600,34 +646,89 @@ class Game {
     static randBlock() {
         return Utils.PickRandomFromDict(Blocks);
     }
+    static heldBlock;
+    static holdCooldown = false;
+    static HoldBlock() {
+        if (Game.holdCooldown)
+            return;
+        Game.holdCooldown = true;
+        if (!Game.heldBlock) {
+            Game.heldBlock = Game.CurrentBlock?.toBlock();
+            Game.CurrentBlock = Game.RandomBlock();
+        }
+        else {
+            const buffer = Game.heldBlock;
+            Game.heldBlock = Game.CurrentBlock?.toBlock();
+            Game.CurrentBlock = new BlockInstance(buffer);
+        }
+        Game.CurrentBlock?.Draw();
+        Game.HoldCanvas.ClearCanvas();
+        if (!Game.heldBlock)
+            return;
+        const block = new BlockInstance(Game.heldBlock).Clone();
+        let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
+        if (lY === hY)
+            hY = 0;
+        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true); // Draw hold block
+        if (!Game.DisableGrid) {
+            Game.HoldCanvas.Context.strokeStyle = "#18192680";
+            BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true, true);
+        }
+        Game.HoldCanvas.Canvas.animate([{ scale: .9 }, { scale: 1 }], { easing: "ease", duration: 100 });
+    }
     static RandomBlock() {
-        this.blockFeed.push(this.randBlock());
-        return new BlockInstance(this.blockFeed.get(0));
+        Game.blockFeed.push(Game.randBlock());
+        const newBlock = Game.blockFeed.get(0) ? new BlockInstance(Game.blockFeed.get(0)) : undefined;
+        Game.NextCanvas.ClearCanvas();
+        const positions = [];
+        for (let i = 1; i < Game.blockFeed.length; i++) {
+            const blockShape = Game.blockFeed.get(i);
+            if (!blockShape)
+                continue;
+            const block = new BlockInstance(blockShape).Clone();
+            let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
+            const prevBlock = Game.blockFeed.get(i - 1) && positions[i - 1] ? new BlockInstance(Game.blockFeed.get(i - 1)) : undefined;
+            const [pX, pY] = [Game.Width / 2 - block.CurrentShape[0].length / 2, (positions[i - 1]?.Y ?? 5) + (prevBlock?.LowestPoint.Y ?? -1) + 1 - hY + 1];
+            positions[i] = new Point(pX, pY);
+            BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true); // Draw next block
+            if (!Game.DisableGrid) {
+                Game.NextCanvas.Context.strokeStyle = "#18192680";
+                BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true, true);
+            }
+            Game.NextCanvas.Canvas.animate([{ scale: .9 }, { scale: 1 }], { easing: "ease", duration: 100 });
+        }
+        return newBlock;
     }
     static get NextBlock() {
-        return this.blockFeed.get(this.blockFeed.length - 1);
+        return Game.blockFeed.get(Game.blockFeed.length - 1);
     }
-    static DrawGrid() {
-        Game.GridDrawn = true;
-        Game.GameCanvas.ClearCanvas();
-        Game.BgCanvas.ClearCanvas();
-        Game.BgCanvas.Context.fillStyle = "#1e2030";
-        Game.BgCanvas.Context.fillRect(Game.GameOffset.X, Game.GameOffset.Y, Game.Width * Game.PixelSize, Game.Height * Game.PixelSize);
-        if (Game.DisableGrid)
-            return;
-        Game.GameCanvas.Context.strokeStyle = "#18192680";
-        Game.GameCanvas.Context.lineWidth = 1;
-        for (let x = 0; x <= Game.Width; x++) {
-            Game.GameCanvas.Context.beginPath();
-            Game.GameCanvas.Context.moveTo(Game.GameOffset.X + x * Game.PixelSize, Game.GameOffset.Y);
-            Game.GameCanvas.Context.lineTo(Game.GameOffset.X + x * Game.PixelSize, Game.GameOffset.Y + Game.Height * Game.PixelSize);
-            Game.GameCanvas.Context.stroke();
+    static DrawGrid(canvas, mode = Enum.GridMode.Both, width, height, sX = 0, sY = 0) {
+        const gameCanvas = canvas ?? Game.GameCanvas;
+        const bgCanvas = canvas ?? Game.BgCanvas;
+        if (!canvas) {
+            Game.GridDrawn = true;
+            gameCanvas.ClearCanvas();
+            bgCanvas.ClearCanvas();
         }
-        for (let y = 0; y <= Game.Height; y++) {
-            Game.GameCanvas.Context.beginPath();
-            Game.GameCanvas.Context.moveTo(Game.GameOffset.X, Game.GameOffset.Y + y * Game.PixelSize);
-            Game.GameCanvas.Context.lineTo(Game.GameOffset.X + Game.Width * Game.PixelSize, Game.GameOffset.Y + y * Game.PixelSize);
-            Game.GameCanvas.Context.stroke();
+        if (mode === Enum.GridMode.BG || mode === Enum.GridMode.Both) {
+            bgCanvas.Context.fillStyle = "#1e2030";
+            bgCanvas.Context.fillRect(Game.GameOffset.X, Game.GameOffset.Y, Game.Width * Game.PixelSize, Game.Height * Game.PixelSize);
+        }
+        if ((!canvas && Game.DisableGrid) || (mode === Enum.GridMode.BG))
+            return;
+        gameCanvas.Context.strokeStyle = "#18192680";
+        gameCanvas.Context.lineWidth = 1;
+        for (let x = sX; x <= (width ? sX + width : Game.Width); x++) {
+            gameCanvas.Context.beginPath();
+            gameCanvas.Context.moveTo(Game.GameOffset.X + x * Game.PixelSize, Game.GameOffset.Y + sY);
+            gameCanvas.Context.lineTo(Game.GameOffset.X + x * Game.PixelSize, Game.GameOffset.Y + sY + (height ?? Game.Height) * Game.PixelSize);
+            gameCanvas.Context.stroke();
+        }
+        for (let y = sY; y <= (height ? sY + height : Game.Height); y++) {
+            gameCanvas.Context.beginPath();
+            gameCanvas.Context.moveTo(Game.GameOffset.X + sX, Game.GameOffset.Y + y * Game.PixelSize);
+            gameCanvas.Context.lineTo(Game.GameOffset.X + sX + (width ?? Game.Width) * Game.PixelSize, Game.GameOffset.Y + y * Game.PixelSize);
+            gameCanvas.Context.stroke();
         }
     }
     static EraseShape(self, x, y, shape) {
@@ -742,15 +843,16 @@ class Game {
         return cFlag;
     }
     static async BlockStamped(self) {
+        Game.holdCooldown = false;
         if (self !== Game.CurrentBlock)
             return;
         await Game.handleClears();
         Game.RedrawCanvas();
         Game.CurrentBlock = Game.RandomBlock();
-        if (!Game.CurrentBlock.IsValidPosition()) {
+        if (!Game.CurrentBlock?.IsValidPosition()) {
             Game.Reset();
         }
-        Game.CurrentBlock.Draw();
+        Game.CurrentBlock?.Draw();
     }
     static TogglePause(paused) {
         document.querySelectorAll(".modal.active").forEach(el => {
@@ -766,7 +868,7 @@ class Game {
             document.getElementById("pause-ind")?.classList.add("paused");
         else
             document.getElementById("pause-ind")?.classList.remove("paused");
-        document.querySelectorAll(".game-canvas").forEach(canvas => {
+        document.querySelectorAll(".game-canvas, .right-stack").forEach(canvas => {
             if (Game.Paused)
                 canvas.classList.add("paused");
             else
@@ -812,6 +914,7 @@ class Signal {
 }
 const settingsWin = document.getElementById("settings");
 const Settings = {
+    AudioVol: settingsWin?.querySelector("#settings-audio-vol"),
     DisableGrid: settingsWin?.querySelector("#settings-grid-disabled"),
     SpeedMul: settingsWin?.querySelector("#settings-game-speed-mul"),
     Anims: settingsWin?.querySelector("#settings-anims"),
@@ -833,6 +936,9 @@ const Settings = {
 const SettingsBuffer = new Map();
 const settingsTitle = document.getElementById("settings-title");
 function UpdateSettingsBuffer(k, data) {
+    const label = document.getElementById(data.el.id + "-label");
+    if (label)
+        label.textContent = data.value;
     if (getAttr(Game, k) === data.value) {
         SettingsBuffer.delete(k);
         if (SettingsBuffer.size === 0)
@@ -863,10 +969,13 @@ RejectSettingsBuffer.Connect(() => {
 });
 function handleSettings() {
     for (const [k, el] of Object.entries(Settings)) {
+        const label = document.getElementById(el.id + "-label");
+        if (label)
+            label.textContent = getAttr(Game, k);
         if (el instanceof HTMLInputElement) {
-            if (el.type === "number") {
-                const min = parseFloat(el.dataset.min ?? "0");
-                const max = parseFloat(el.dataset.max ?? "100");
+            if (el.type === "number" || el.type === "range") {
+                const min = parseFloat(el.min ?? "0");
+                const max = parseFloat(el.max ?? "100");
                 const defaultVal = getAttr(Game, k);
                 if (el.classList.contains("percent"))
                     el.valueAsNumber = getAttr(Game, k) * max;
@@ -935,6 +1044,9 @@ class BlockData {
 }
 class Block {
     constructor(blockShapes, blockData, symbol) {
+        if (blockShapes.length < 4)
+            for (let i = blockShapes.length; i < 4; i++)
+                blockShapes[i] = blockShapes[i - 1];
         this.Shapes = blockShapes;
         this.Data = blockData;
         this.Symbol = symbol;
@@ -950,7 +1062,8 @@ class BlockInstance extends Block {
     constructor(block) {
         super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width / 2 - this.CurrentShape[0].length / 2);
-        this.targetPos = { x: this._x, y: this._y };
+        this._y = 0 - this.HighestPoint.Y;
+        this.targetPos = new Point(this._x, this._y);
     }
     _x = 0;
     _y = 0;
@@ -960,11 +1073,20 @@ class BlockInstance extends Block {
     get Y() {
         return this._y;
     }
+    get Width() {
+        return this.CurrentShape[0].length;
+    }
+    get Height() {
+        return this.CurrentShape.length;
+    }
+    get VisualHeight() {
+        return (this.LowestPoint.Y - this.HighestPoint.Y) + 1;
+    }
     get CurrentShape() {
         return this.Shapes[this.Rotation];
     }
     Rotation = 0;
-    IsValidPosition(x = this.targetPos.x, y = this.targetPos.y, shape = this.CurrentShape) {
+    IsValidPosition(x = this.targetPos?.X ?? 0, y = this.targetPos?.Y ?? 0, shape = this.CurrentShape) {
         for (const [oY, row] of shape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
@@ -977,24 +1099,37 @@ class BlockInstance extends Block {
         }
         return true;
     }
-    tween;
+    tween = new Tween([]);
     targetPos;
     dropping = false;
+    isFake = false;
+    Clone() {
+        const clone = new BlockInstance(this.toBlock());
+        clone.isFake = true;
+        clone._x = this._x;
+        clone._y = this._y;
+        clone.targetPos = this.targetPos;
+        clone.Rotation = this.Rotation;
+        clone.tween = this.tween;
+        clone.dropping = this.dropping;
+        clone.stamping = this.stamping;
+        return clone;
+    }
     get IsDropping() {
         return this.dropping;
     }
     async Move(x = 0, y = 0, isInstantDrop = false) {
         if (this.dropping)
             return undefined;
-        x += this.targetPos.x;
-        y += this.targetPos.y;
+        x += this.targetPos?.X ?? 0;
+        y += this.targetPos?.Y ?? 0;
         if (!this.IsValidPosition(x, y))
             return !this.dropping ? false : undefined;
         if (isInstantDrop)
             this.dropping = true;
-        this.targetPos = { x: x, y: y };
+        this.targetPos = new Point(x, y);
         if (Game.Anims) {
-            const tData = { s: { x: this._x, y: this._y }, e: this.targetPos };
+            const tData = { s: new Point(this._x, this._y), e: this.targetPos };
             const { promise: comp, resolve } = Promise.withResolvers();
             if (this.tween && this.tween.isPlaying())
                 this.tween.stop();
@@ -1003,8 +1138,8 @@ class BlockInstance extends Block {
                 .easing(!isInstantDrop ? Game.MoveEase : Game.DropEase)
                 .dynamic(true)
                 .onUpdate(data => {
-                this._x = data.x;
-                this._y = data.y;
+                this._x = data.X;
+                this._y = data.Y;
                 this.Draw(undefined);
             });
             var isComplete = false;
@@ -1028,7 +1163,7 @@ class BlockInstance extends Block {
             await sleep(2);
         }
         else {
-            [this._x, this._y] = [this.targetPos.x, this.targetPos.y];
+            [this._x, this._y] = [this.targetPos.X, this.targetPos.Y];
             this.Draw();
             if (isInstantDrop)
                 this.dropping = false;
@@ -1046,12 +1181,23 @@ class BlockInstance extends Block {
         this.Draw();
         return true;
     }
-    _draw(canvas = Game.BlockCanvas, x = this._x, y = this._y) {
+    static Draw(block, canvas, x, y, drawColor, outline, width, height) {
+        if (!block.isFake)
+            return;
+        block._draw(canvas, x, y, drawColor, outline, width, height);
+    }
+    _draw(canvas = Game.BlockCanvas, x = this._x, y = this._y, drawColor = false, outline = false, width = 1, height = 1) {
+        if (drawColor)
+            canvas.Context.fillStyle = this.Data.Color.RGBA;
         for (const [oY, row] of this.CurrentShape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                canvas.Context.fillRect(Game.GameOffset.X + x * Game.PixelSize + oX * Game.PixelSize, Game.GameOffset.Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize, Game.PixelSize);
+                const [_x, _y, _w, _h] = [Game.CanvasOffset(canvas).X + x * Game.PixelSize + oX * Game.PixelSize, Game.CanvasOffset(canvas).Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize * width, Game.PixelSize * height];
+                if (!outline)
+                    canvas.Context.fillRect(_x, _y, _w, _h);
+                else
+                    canvas.Context.strokeRect(_x, _y, _w, _h);
             }
         }
     }
@@ -1065,12 +1211,12 @@ class BlockInstance extends Block {
         // Draw ghost block
         if (Game.GhostBlockOpacity > 0 && canvas === Game.BlockCanvas && this.LowestValidY > this._y) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.GhostBlockOpacity);
-            this._draw(canvas, !Game.AnimGhostBlock ? this.targetPos.x : this._x, this.LowestValidY);
+            this._draw(canvas, !Game.AnimGhostBlock ? this.targetPos?.X : this._x, this.LowestValidY);
         }
         // Draw accublock
         if (Game.RawBlockOpacity > 0 && canvas === Game.BlockCanvas) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.RawBlockOpacity);
-            this._draw(canvas, this.targetPos.x, this.targetPos.y);
+            this._draw(canvas, this.targetPos?.X, this.targetPos?.Y);
         }
     }
     stamping = false;
@@ -1078,18 +1224,18 @@ class BlockInstance extends Block {
         if (this.dropping || this.stamping)
             return;
         this.stamping = true;
-        [this._x, this._y] = [this.targetPos.x, this.targetPos.y];
+        [this._x, this._y] = [this.targetPos?.X ?? 0, this.targetPos?.Y ?? 0];
         this.Draw(Game.StaleCanvas);
         Game.WriteShape(this, this._x, this._y, this.CurrentShape);
         await Game.BlockStamped(this);
         this.stamping = false;
     }
     async InstantDrop() {
-        await this.Move(0, this.LowestValidY - (this.targetPos.y), true);
+        await this.Move(0, this.LowestValidY - (this.targetPos?.Y ?? 0), true);
         await this.Stamp();
     }
     get LowestValidY() {
-        let y = this.targetPos.y;
+        let y = this.targetPos?.Y ?? 0;
         while (true) {
             y++;
             if (!this.IsValidPosition(undefined, y)) {
@@ -1099,18 +1245,32 @@ class BlockInstance extends Block {
         }
         return y;
     }
-    get LowestPoint() {
-        let lowestPoint = { x: 0, y: 0 };
+    get HighestPoint() {
+        let highestPoint = new Point(0, 0);
         for (const [oY, row] of this.CurrentShape.entries()) {
-            if (oY < lowestPoint.y)
-                continue;
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                lowestPoint = { x: oX, y: oY };
+                return new Point(oX, oY);
+            }
+        }
+        return highestPoint;
+    }
+    get LowestPoint() {
+        let lowestPoint = new Point(0, 0);
+        for (const [oY, row] of this.CurrentShape.entries()) {
+            if (oY < lowestPoint.Y)
+                break;
+            for (const [oX, col] of row.entries()) {
+                if (col === 0)
+                    continue;
+                lowestPoint = new Point(oX, oY);
             }
         }
         return lowestPoint;
+    }
+    toBlock() {
+        return new Block(this.Shapes, this.Data, this.Symbol);
     }
 }
 const Blocks = {
@@ -1272,9 +1432,9 @@ const Blocks = {
 class ModEngine {
     static ModList = {};
     static LoadMod(mod) {
-        if (this.ModList[mod.Namespace] !== undefined)
+        if (this.ModList[mod.Name] !== undefined)
             return false;
-        this.ModList[mod.Namespace] = mod;
+        this.ModList[mod.Name] = mod;
         return true;
     }
 }
@@ -1287,7 +1447,6 @@ class Mod {
     ;
     Name;
     Description;
-    Namespace;
     Blocks;
 }
 function onResize() {
@@ -1303,26 +1462,71 @@ function onResize() {
         }
     });
 }
-const resizeObserver = new ResizeObserver(onResize);
-resizeObserver.observe(document.body);
-window.addEventListener("resize", onResize);
+// const resizeObserver = new ResizeObserver(onResize);
+// resizeObserver.observe(document.body);
+// window.addEventListener("resize",onResize);
 window.addEventListener("click", loadSFX);
+function getRangeStep(range) {
+    const int = range.classList.contains("int");
+    let step = ((int ? parseInt : parseFloat)(range.step)) || 1;
+    if (heldKeys.Shift && (heldKeys.Control || heldKeys.Meta))
+        step = Math.abs(parseFloat(range.max)) + Math.abs(parseFloat(range.min));
+    else if (heldKeys.Shift)
+        step = parseFloat(range.dataset.shiftStep ?? "") || (step * 5);
+    else if (heldKeys.Control || heldKeys.Meta)
+        step = (Math.abs(parseFloat(range.max)) + Math.abs(parseFloat(range.min))) / 2;
+    return (int ? Math.round : dummy)(step);
+}
+function stepRange(range, dir = 1) {
+    const int = range.classList.contains("int");
+    return clamp((int ? parseInt : parseFloat)(range.value) + (getRangeStep(range) * dir), (int ? parseInt : parseFloat)(range.min), (int ? parseInt : parseFloat)(range.max));
+}
+const heldKeys = { "Shift": false, "Control": false, "Meta": false };
+window.addEventListener("keyup", event => {
+    if (heldKeys[event.key] !== undefined)
+        heldKeys[event.key] = false;
+});
 window.addEventListener("keydown", async (event) => {
+    if (heldKeys[event.key] !== undefined)
+        heldKeys[event.key] = true;
+    let eventKey = event.key;
+    if (eventKey === "Tab" && heldKeys.Shift)
+        eventKey = "ShiftTab";
     if (event.defaultPrevented || !__sfx_loaded)
         return;
     if (!Game.Running || Game.Paused) {
-        if (document.activeElement.classList.contains("keybind") && document.activeElement.textContent === "...")
+        if (document.activeElement?.classList.contains("keybind") && document.activeElement.textContent === "...")
             return event.preventDefault();
-        switch (event.key) {
+        switch (eventKey) {
             case "ArrowLeft":
-                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    return;
+                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement) {
+                    if (PauseBtns[PauseMenuSel].type !== "range") {
+                        return;
+                    }
+                    else {
+                        const val = PauseBtns[PauseMenuSel];
+                        val.valueAsNumber = stepRange(val, -1);
+                        val.dispatchEvent(new Event("change"));
+                        return event.preventDefault();
+                    }
+                }
+            case "ShiftTab":
             case "ArrowUp":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, -1, 0, PauseBtns.length - 1);
                 return focusButton();
             case "ArrowRight":
-                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement)
-                    return;
+                if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement) {
+                    if (PauseBtns[PauseMenuSel].type !== "range") {
+                        return;
+                    }
+                    else {
+                        const val = PauseBtns[PauseMenuSel];
+                        val.valueAsNumber = stepRange(val);
+                        val.dispatchEvent(new Event("change"));
+                        return event.preventDefault();
+                    }
+                }
+            case "Tab":
             case "ArrowDown":
                 PauseMenuSel = Utils.OverflowOperate(PauseMenuSel, 1, 0, PauseBtns.length - 1);
                 return focusButton();
@@ -1331,7 +1535,7 @@ window.addEventListener("keydown", async (event) => {
             case " ":
             case "Enter":
                 if (!(document.activeElement instanceof HTMLSelectElement)) {
-                    if (document.activeElement.classList.contains("keybind"))
+                    if (document.activeElement?.classList.contains("keybind"))
                         await sleep(2);
                     document.activeElement?.click();
                 }
@@ -1370,6 +1574,9 @@ window.addEventListener("keydown", async (event) => {
             break;
         case Game.KeyBinds.Hard:
             Game.CurrentBlock?.InstantDrop();
+            break;
+        case Game.KeyBinds.Hold:
+            Game.HoldBlock();
             break;
         case "Backspace":
         case "Escape":
@@ -1427,7 +1634,7 @@ document.querySelectorAll("details").forEach(el => {
     document.head.appendChild(style);
     el.classList.add(`details-${ind}`);
     const summary = el.querySelector("summary");
-    summary.addEventListener("click", () => {
+    summary?.addEventListener("click", () => {
         setTimeout(() => {
             updateSelectionButtons(el);
         }, 1);
@@ -1440,7 +1647,7 @@ document.querySelectorAll("details").forEach(el => {
     });
 });
 const keyTranslationMap = {
-    " ": "Space",
+    " ": "Space"
 };
 function translateKey(k, reverse = false) {
     if (keyTranslationMap[k])
@@ -1487,6 +1694,7 @@ function preventKeyEvents(el) {
                 case "ArrowUp":
                 case "ArrowDown":
                     return event.preventDefault();
+                case "Tab":
                 case "ArrowLeft":
                 case "ArrowRight":
                     return !(el instanceof HTMLInputElement) ? event.preventDefault() : undefined;

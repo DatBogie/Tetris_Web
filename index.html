@@ -13,7 +13,8 @@
     <script type="importmap">
         {
             "imports": {
-                "@tweenjs/tween.js": "https://cdn.jsdelivr.net/npm/@tweenjs/tween.js/dist/tween.esm.js"
+                "@tweenjs/tween.js": "https://cdn.jsdelivr.net/npm/@tweenjs/tween.js/dist/tween.esm.js",
+                "jsfxr": "https://esm.sh/jsfxr@1.4.0"
             }
         }
     </script>
@@ -24,116 +25,135 @@
         <i>You can always disable it later in Settings.</i>
     </div>
     <div class="center game-head">
-        <canvas id="bg" class="game-canvas" width="320" height="640"></canvas>
-        <canvas id="stale" class="game-canvas" width="320" height="640"></canvas>
-        <canvas id="block" class="game-canvas" width="320" height="640"></canvas>
-        <canvas id="game" class="game-canvas" width="320" height="640"></canvas>
-        <div id="pause-ind" class="center game-canvas" style="width: 100vw; height: 100vh;">
-            <div id="pause-text">Paused...</div>
-            <div id="pause-btns" class="center">
-                <button id="pause-resume" class="keyboard-selectable">Resume</button>
-                <button id="pause-restart" class="keyboard-selectable">Restart</button>
-                <button id="pause-settings" class="keyboard-selectable">Settings</button>
-                <button id="pause-mods" class="keyboard-selectable">Mods</button>
+        <div class="stack">
+            <div class="right-stack center">
+                <div class="canvas-box">
+                    <h2>Next</h2>
+                    <canvas id="next" class="right-canvas" width="320" height="320"></canvas>
+                    <h2>Hold</h2>
+                    <canvas id="hold" class="right-canvas" width="320" height="320"></canvas>
+                </div>
             </div>
-        </div>
-        <div id="settings" class="center modal">
-            <div id="settings-title">Settings</div>
-            <div id="settings-content" class="center modal-content">
-                <ul class="layout">
-                    <details>
-                        <summary class="center keyboard-selectable">Gameplay</summary>
-                        <li class="details-content">
-                            <ul class="layout left-align">
-                                <li><span>Ghost Block Opacity: </span><input id="settings-ghost-opacity" type="number" class="percent keyboard-selectable" data-min="0" data-max="100"><span>%</span></li>
-                                <li><span>AccuBlock Opacity: </span><input id="settings-raw-opacity" type="number" class="percent keyboard-selectable" data-min="0" data-max="100"><span>%</span></li>
-                                <hr>
-                                <li><span>Game Speed: </span><input id="settings-game-speed-mul" type="number" class="keyboard-selectable" data-funcs="NewGame" data-min="0" data-max="100"><span>&times;</span></li>
-                                <li><span>Game Width: </span><input id="settings-game-width" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000"><span>px</span></li>
-                                <li><span>Game Height: </span><input id="settings-game-height" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" data-min="4" data-max="1000"><span>px</span></li>
-                                <li><span>Gravity: </span><input id="settings-physics" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="NewGame"></li>
-                            </ul>
-                        </li>
-                    </details>
-                    <details>
-                        <summary class="center keyboard-selectable">Eye Candy</summary>
-                        <li class="details-content">
-                            <ul class="layout left-align">
-                                <li><span>Animations: </span><input id="settings-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
-                                <li><span>Animate Ghost Block: </span><input id="settings-ghost-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
-                                <li><span>Animation Move Duration: </span><input id="settings-anim-move-time" type="number" class="keyboard-selectable" data-min="0" data-max="1000"><span>ms</span></li>
-                                <li><span>Move Block Ease: </span><span><select id="settings-ease-style-move" class="keyboard-selectable ease">
-                                    <option>Linear</option>
-                                    <option>Sinusoidal</option>
-                                    <option>Quadratic</option>
-                                    <option>Cubic</option>
-                                    <option>Quartic</option>
-                                    <option>Quintic</option>
-                                    <option>Circular</option>
-                                    <option>Exponential</option>
-                                    <option>Back</option>
-                                    <option>Bounce</option>
-                                    <option>Elastic</option>
-                                </select>
-                                <select id="settings-ease-dir-move" class="keyboard-selectable ease">
-                                    <option>InOut</option>
-                                    <option>In</option>
-                                    <option>Out</option>
-                                </select></span></li>
-                                <hr>
-                                <li><span>Animation Drop Duration: </span><input id="settings-anim-drop-time" type="number" class="keyboard-selectable" data-min="0" data-max="1000"><span>ms</span></li>
-                                <li><span>Drop Block Ease: </span><span><select id="settings-ease-style-drop" class="keyboard-selectable ease">
-                                    <option>Linear</option>
-                                    <option>Sinusoidal</option>
-                                    <option>Quadratic</option>
-                                    <option>Cubic</option>
-                                    <option>Quartic</option>
-                                    <option>Quintic</option>
-                                    <option>Circular</option>
-                                    <option>Exponential</option>
-                                    <option>Back</option>
-                                    <option>Bounce</option>
-                                    <option>Elastic</option>
-                                </select>
-                                <select id="settings-ease-dir-drop" class="keyboard-selectable ease">
-                                    <option>InOut</option>
-                                    <option>In</option>
-                                    <option>Out</option>
-                                </select></span></li>
-                                <hr>
-                                <li><span>Animation Line Clear Duration: </span><input id="settings-anim-clear-time" type="number" class="keyboard-selectable" data-min="0" data-max="1000"><span>ms</span></li>
-                                <li title="True:&NewLine;- Time per block: (Line Clear Duration / Game Width)&NewLine;&NewLine;False:&NewLine;- Time per block: Line Clear Duration"><span>Fixed Line Clear Duration: </span><input id="settings-anim-clear-time-fixed" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
-                                <hr>
-                                <li><span>Hide Grid: </span><input id="settings-grid-disabled" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="DrawGrid"></li>
-                            </ul>
-                        </li>
-                    </details>
-                    <details>
-                        <summary class="center keyboard-selectable">Keybinds</summary>
-                        <li class="details-content">
-                            <ul class="layout left-align">
-                                <li><span>Move Left: </span><button class="keybind keyboard-selectable" data-bind="Left" data-key="ArrowLeft"></button></li>
-                                <li><span>Move Right: </span><button class="keybind keyboard-selectable" data-bind="Right" data-key="ArrowRight"></button></li>
-                                <li><span>Soft Drop: </span><button class="keybind keyboard-selectable" data-bind="Soft" data-key="ArrowDown"></button></li>
-                                <li><span>Hard Drop: </span><button class="keybind keyboard-selectable" data-bind="Hard" data-key=" "></button></li>
-                                <li><span>Rotate Clockwise: </span><button class="keybind keyboard-selectable" data-bind="RC" data-key="ArrowUp"></button></li>
-                                <li><span>Rotate Counterclockwise: </span><button class="keybind keyboard-selectable" data-bind="RCC" data-key="z"></button></li>
-                            </ul>
-                        </li>
-                    </details>
-                    <li>
-                        <div class="center modal-buttons">
-                            <button id="settings-back" class="keyboard-selectable">Save &amp; Close</button>
-                            <button id="settings-quit" class="keyboard-selectable modal-back">Discard &amp; Close</button>
-                        </div>
-                    </li>
-                </ul>
+            <canvas id="bg" class="game-canvas" width="320" height="640"></canvas>
+            <canvas id="stale" class="game-canvas" width="320" height="640"></canvas>
+            <canvas id="block" class="game-canvas" width="320" height="640"></canvas>
+            <canvas id="game" class="game-canvas" width="320" height="640"></canvas>
+            <div id="pause-ind" class="center game-canvas">
+                <div id="pause-text">Paused...</div>
+                <div id="pause-btns" class="center">
+                    <button id="pause-resume" class="keyboard-selectable">Resume</button>
+                    <button id="pause-restart" class="keyboard-selectable">Restart</button>
+                    <button id="pause-settings" class="keyboard-selectable">Settings</button>
+                    <button id="pause-mods" class="keyboard-selectable">Mods</button>
+                </div>
             </div>
-        </div>
-        <div id="mods" class="center modal">
-            <div>Mods</div>
-            <div id="mods-content" class="center modal-content modal-buttons">
-                <button id="mods-back" class="keyboard-selectable modal-back">Back</button>
+            <div id="settings" class="center modal">
+                <div id="settings-title">Settings</div>
+                <div id="settings-content" class="center modal-content">
+                    <ul class="layout">
+                        <details>
+                            <summary class="center keyboard-selectable">Gameplay</summary>
+                            <li class="details-content">
+                                <ul class="layout left-align">
+                                    <li><span>Ghost Block Opacity: </span><input id="settings-ghost-opacity" type="number" class="percent keyboard-selectable" min="0" max="100"><span>%</span></li>
+                                    <li><span>AccuBlock Opacity: </span><input id="settings-raw-opacity" type="number" class="percent keyboard-selectable" min="0" max="100"><span>%</span></li>
+                                    <hr>
+                                    <li><span>Game Speed: </span><input id="settings-game-speed-mul" type="number" class="keyboard-selectable" data-funcs="NewGame" min="0" max="100"><span>&times;</span></li>
+                                    <li><span>Game Width: </span><input id="settings-game-width" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" min="4" max="1000"><span>px</span></li>
+                                    <li><span>Game Height: </span><input id="settings-game-height" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" min="4" max="1000"><span>px</span></li>
+                                    <li><span>Gravity: </span><input id="settings-physics" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="NewGame"></li>
+                                </ul>
+                            </li>
+                        </details>
+                        <details>
+                            <summary class="center keyboard-selectable">Audio</summary>
+                            <li class="details-content">
+                                <ul class="layout left-align">
+                                    <li><span>Audio Volume: </span><input id="settings-audio-vol" type="range" min="0" max="100" step="5" class="keyboard-selectable int"><span id="settings-audio-vol-label" style="margin-left: 15px;"></span><span>&percnt;</span></li>
+                                </ul>
+                            </li>
+                        </details>
+                        <details>
+                            <summary class="center keyboard-selectable">Visuals</summary>
+                            <li class="details-content">
+                                <ul class="layout left-align">
+                                    <li><span>Animations: </span><input id="settings-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
+                                    <li><span>Animate Ghost Block: </span><input id="settings-ghost-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
+                                    <li><span>Animation Move Duration: </span><input id="settings-anim-move-time" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li><span>Move Block Ease: </span><span><select id="settings-ease-style-move" class="keyboard-selectable ease">
+                                        <option>Linear</option>
+                                        <option>Sinusoidal</option>
+                                        <option>Quadratic</option>
+                                        <option>Cubic</option>
+                                        <option>Quartic</option>
+                                        <option>Quintic</option>
+                                        <option>Circular</option>
+                                        <option>Exponential</option>
+                                        <option>Back</option>
+                                        <option>Bounce</option>
+                                        <option>Elastic</option>
+                                    </select>
+                                    <select id="settings-ease-dir-move" class="keyboard-selectable ease">
+                                        <option>InOut</option>
+                                        <option>In</option>
+                                        <option>Out</option>
+                                    </select></span></li>
+                                    <hr>
+                                    <li><span>Animation Drop Duration: </span><input id="settings-anim-drop-time" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li><span>Drop Block Ease: </span><span><select id="settings-ease-style-drop" class="keyboard-selectable ease">
+                                        <option>Linear</option>
+                                        <option>Sinusoidal</option>
+                                        <option>Quadratic</option>
+                                        <option>Cubic</option>
+                                        <option>Quartic</option>
+                                        <option>Quintic</option>
+                                        <option>Circular</option>
+                                        <option>Exponential</option>
+                                        <option>Back</option>
+                                        <option>Bounce</option>
+                                        <option>Elastic</option>
+                                    </select>
+                                    <select id="settings-ease-dir-drop" class="keyboard-selectable ease">
+                                        <option>InOut</option>
+                                        <option>In</option>
+                                        <option>Out</option>
+                                    </select></span></li>
+                                    <hr>
+                                    <li><span>Animation Line Clear Duration: </span><input id="settings-anim-clear-time" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li title="True:&NewLine;- Time per block: (Line Clear Duration / Game Width)&NewLine;&NewLine;False:&NewLine;- Time per block: Line Clear Duration"><span>Fixed Line Clear Duration: </span><input id="settings-anim-clear-time-fixed" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
+                                    <hr>
+                                    <li><span>Hide Grid: </span><input id="settings-grid-disabled" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="DrawGrid"></li>
+                                </ul>
+                            </li>
+                        </details>
+                        <details>
+                            <summary class="center keyboard-selectable">Keybinds</summary>
+                            <li class="details-content">
+                                <ul class="layout left-align">
+                                    <li><span>Move Left: </span><button class="keybind keyboard-selectable" data-bind="Left" data-key="ArrowLeft"></button></li>
+                                    <li><span>Move Right: </span><button class="keybind keyboard-selectable" data-bind="Right" data-key="ArrowRight"></button></li>
+                                    <li><span>Soft Drop: </span><button class="keybind keyboard-selectable" data-bind="Soft" data-key="ArrowDown"></button></li>
+                                    <li><span>Hard Drop: </span><button class="keybind keyboard-selectable" data-bind="Hard" data-key=" "></button></li>
+                                    <li><span>Rotate Clockwise: </span><button class="keybind keyboard-selectable" data-bind="RC" data-key="ArrowUp"></button></li>
+                                    <li><span>Rotate Counterclockwise: </span><button class="keybind keyboard-selectable" data-bind="RCC" data-key="z"></button></li>
+                                    <li><span>Hold Block: </span><button class="keybind keyboard-selectable" data-bind="Hold" data-key="c"></button></li>
+                                </ul>
+                            </li>
+                        </details>
+                        <li>
+                            <div class="center modal-buttons">
+                                <button id="settings-back" class="keyboard-selectable">Save &amp; Close</button>
+                                <button id="settings-quit" class="keyboard-selectable modal-back">Discard &amp; Close</button>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div id="mods" class="center modal">
+                <div>Mods</div>
+                <div id="mods-content" class="center modal-content modal-buttons">
+                    <button id="mods-back" class="keyboard-selectable modal-back">Back</button>
+                </div>
             </div>
         </div>
     </div>
