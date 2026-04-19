@@ -84,14 +84,19 @@ body {
     transition: filter 200ms ease;
 }
 
-.right-stack {
+.left-stack,.right-stack {
     position: absolute;
-    left: 100%;
     top: 0;
     width: calc((100vw - 50vh) / 2);
     height: 100vh;
     flex-direction: column;
     justify-content: start;
+}
+.left-stack {
+    right: 100%;
+}
+.right-stack {
+    left: 100%;
 }
 
 .right-canvas {
@@ -100,7 +105,7 @@ body {
     max-width: 400px;
 }
 
-.game-canvas.paused, .modal.active, .right-stack.paused {
+.game-canvas.paused, .modal.active, .right-stack.paused, .left-stack.paused {
     filter: blur(16px) saturate(120%) brightness(80%);
 }
 
@@ -356,7 +361,14 @@ hr {
     color: var(--overlay0);
 }
 
-h2 {
+h2, h2 span {
     color: white;
     text-align: center;
+    font-weight: bolder;
+    font-size: x-large;
+}
+
+.gap {
+    display: inline-block;
+    width: 50px;
 }

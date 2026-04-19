@@ -88,6 +88,12 @@ function setAttr(instance:any,attr:string,value:any) : void {
 }
 
 namespace Enum {
+    export type ModeOperationFunction = (initialValue:number,modifyingValue:number)=>number;
+    export class ModeOperation {
+        static readonly Set:ModeOperationFunction = (x:number,y:number)=>y;
+        static readonly Add:ModeOperationFunction = (x:number,y:number)=>x+y;
+        static readonly Multiply:ModeOperationFunction = (x:number,y:number)=>x*y;
+    }
     export enum GridMode { BG, Grid, Both }
     export class CustomBlockShape {
         static get length() : number {
@@ -111,26 +117,6 @@ namespace Enum {
     export function OperationFromString(op:string) : Operation {
         return ops[op] ?? Operation.Addition;
     }
-    export class Level {
-        constructor(id:number, speed:number, nameFormat:string="Level ${id}") {
-            this.Id = id;
-            this.Name = nameFormat
-            .replaceAll("\$\{id\}",id.toString())
-            .replaceAll("\$\{speed\}",speed.toString());
-            this.Speed = speed;
-        }
-        readonly Id:number;
-        readonly Speed:number;
-        readonly Name:string;
-    }
-    export const Levels = [
-        new Level(1,1.0),
-        new Level(2,1.2),
-        new Level(3,1.5),
-        new Level(4,2.0),
-        new Level(5,2.5),
-        new Level(6,3.0)
-    ]
     export enum ThemeStyle { Dark, Light }
     export enum UIThemeKey { olc, rosewater, flamingo, pink, mauve, red, maroon, peach, yellow, green, teal, sky, sapphire, blue, lavender, text, subtext1, subtext0, overlay2, overlay1, overlay0, surface2, surface1, surface0, base, mantle, crust, accent }
 }
@@ -377,6 +363,39 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 type easeStyle = "Linear"|"Sinusoidal"|"Quadratic"|"Cubic"|"Quartic"|"Quintic"|"Circular"|"Exponential"|"Back"|"Bounce"|"Elastic";
 type easeDir = "In"|"Out"|"InOut";
 
+class ArrayWrapper<T> {
+    constructor(data:T[]) {
+        this.data = Array.from(data);
+    }
+    protected readonly data:Array<T>;
+    get length() : number {
+        return this.data.length;
+    }
+    push(...items:never) {
+        this.data.push(items);
+    }
+    pop() : T|undefined {
+        return this.data.pop();
+    }
+    get(index:number) : T {
+        return this.data[index];
+    }
+    set(index:number, value:T) {
+        this.data[index] = value;
+    }
+    indexOf(searchElement:never, fromIndex?:number) : number {
+        return this.data.indexOf(searchElement,fromIndex);
+    }
+}
+
+class InfiniteArray<T> extends ArrayWrapper<T> {
+    override get(index: number) : T {
+        if (new NumberRange(0,this.length).inRange(index))
+            return this.data[index];
+        return this.data[this.length-1];
+    }
+}
+
 class FeedtapeArray<T> {
     constructor(length:number) {
         this.data = new Array(length);
@@ -415,7 +434,24 @@ class FeedtapeArray<T> {
     }
 }
 
+const levelText:HTMLElement = document.getElementById("level") as HTMLElement;
+const scoreText:HTMLElement = document.getElementById("score") as HTMLElement;
+const scoreGateText:HTMLElement = document.getElementById("score-gate") as HTMLElement;
+const scoreGateRelText:HTMLElement = document.getElementById("score-gate-rel") as HTMLElement;
+const scoreGatePercentText:HTMLElement = document.getElementById("score-gate-percent") as HTMLElement;
+
 class Game {
+    private static score:number = 0;
+    static set Score(score:number) {
+        this.score = score*this.Level.ScoreMultiplier();
+        scoreText.textContent = score.toString();
+        scoreGateRelText.textContent = (this.ScoreGate-score).toString();
+        scoreGatePercentText.textContent = Math.trunc((score/this.ScoreGate)*100).toString();
+    }
+    static get Score() : number {
+        return this.score;
+    }
+    static ScoreGate:number;
     static KeyRepeatInterval:number = 75;
     static KeyRepeatDelay:number = 125;
     static AudioVol:number = 100;
@@ -531,7 +567,22 @@ class Game {
     static readonly StaleCanvas:Canvas2D = new Canvas2D(document.getElementById("stale") as HTMLCanvasElement);
     static readonly HoldCanvas:Canvas2D = new Canvas2D(document.getElementById("hold") as HTMLCanvasElement);
     static readonly NextCanvas:Canvas2D = new Canvas2D(document.getElementById("next") as HTMLCanvasElement);
-    private static Level:Enum.Level;
+    private static LevelIndex:number;
+    private static get Level() : Level {
+        return Levels.get(this.LevelIndex);
+    }
+    private static get NextLevel() : Level {
+        return Levels.get(this.LevelIndex+1);
+    }
+    private static set Level(level:number) {
+        this.LevelIndex = level;
+        this.LevelSpeed = this.Level.Speed;
+        this.ScoreGate = this.NextLevel.ScoreGate;
+        levelText.textContent = this.LevelIndex.toString();
+        scoreGateText.textContent = this.ScoreGate.toString();
+        scoreGateRelText.textContent = (this.ScoreGate-this.score).toString();
+        scoreGatePercentText.textContent = Math.trunc((this.score/this.ScoreGate)*100).toString();
+    }
     static get Running() : boolean {
         return Game._running
     }
@@ -558,8 +609,9 @@ class Game {
     static get GameOffset() : Point {
         return Game.CanvasOffset(Game.GameCanvas);
     }
+    static LevelSpeed:number = 1.0;
     static get Speed() : number {
-        return Game.BaseSpeedMs / Game.Level.Speed / Game.SpeedMul;
+        return Game.BaseSpeedMs / Game.LevelSpeed / Game.SpeedMul;
     }
     static get Data() : readonly (readonly (number|BlockData)[])[] {
         return Game._data;
@@ -571,7 +623,11 @@ class Game {
         Game._running = false;
         Game.TogglePause(true);
         Game._time = 0;
-        Game.Level = Enum.Levels[0];
+        Game.Level = 0;
+        Game.Score = 0;
+        Game.LevelSpeed = 1;
+        Game.LevelSpeed = this.Level.Speed;
+        Game.ScoreGate = this.NextLevel.ScoreGate;
         if (!Game.GridDrawn)
             Game.DrawGrid();
         Game.BlockCanvas.ClearCanvas();
@@ -816,7 +872,7 @@ class Game {
             document.getElementById("pause-ind")?.classList.add("paused");
         else
             document.getElementById("pause-ind")?.classList.remove("paused");
-        document.querySelectorAll(".game-canvas, .right-stack").forEach(canvas=>{
+        document.querySelectorAll(".game-canvas, .right-stack, .left-stack").forEach(canvas=>{
             if (Game.Paused)
                 canvas.classList.add("paused");
             else
@@ -992,6 +1048,51 @@ class BlockData {
         this.Color = color;
     }
     Color:Color;
+}
+
+class NumberRange {
+    constructor(min:number, max:number) {
+        this.Min = Math.min(min,max);
+        this.Max = Math.max(min,max);
+    }
+    inRange(x:number) : boolean {
+        return (x >= this.Min) && (x <= this.Max);
+    }
+    readonly Min:number;
+    readonly Max:number;
+    static readonly infinite = new NumberRange(-Infinity,Infinity);
+}
+
+class Level {
+    constructor(name:string, speed:number, scoreGate:number, speedMode:Enum.ModeOperationFunction=Enum.ModeOperation.Multiply, scoreGateMode:Enum.ModeOperationFunction=Enum.ModeOperation.Multiply, speedRange:NumberRange=NumberRange.infinite, scoreGateRange:NumberRange=NumberRange.infinite, scoreMultiplier?:(index:number)=>number) {
+        this.Name = name;
+        this.speed = speed;
+        this.scoreGate = scoreGate;
+        this.SpeedMode = speedMode;
+        this.ScoreGateMode = scoreGateMode;
+        this.SpeedRange = speedRange;
+        this.ScoreGateRange = scoreGateRange;
+        if (scoreMultiplier) this.scoreMultiplier = scoreMultiplier;
+    }
+    readonly Name:string;
+    private readonly speed:number;
+    private readonly scoreGate:number;
+    private readonly scoreMultiplier:(index:number)=>number = function(index:number) : number {
+        return 1+index/25;
+    };
+    public ScoreMultiplier() {
+        return this.scoreMultiplier(Levels.indexOf(this as never));
+    }
+    readonly SpeedMode:Enum.ModeOperationFunction;
+    readonly ScoreGateMode:Enum.ModeOperationFunction;
+    readonly SpeedRange:NumberRange;
+    readonly ScoreGateRange:NumberRange;
+    get Speed() : number {
+        return clamp(this.SpeedMode(Game.LevelSpeed,this.speed),this.SpeedRange.Min,this.SpeedRange.Max);
+    }
+    get ScoreGate() : number {
+        return clamp(this.ScoreGateMode(Game.ScoreGate,this.scoreGate),this.ScoreGateRange.Min,this.ScoreGateRange.Max);
+    }
 }
 
 class Block {
@@ -1209,6 +1310,11 @@ class BlockInstance extends Block {
         return new Block(this.Shapes,this.Data,this.Symbol);
     }
 }
+
+const Levels:InfiniteArray<Level> = new InfiniteArray([
+    new Level("Level 0",1.0,0,Enum.ModeOperation.Set,Enum.ModeOperation.Set),
+    new Level("Level 1",1.25,1000,Enum.ModeOperation.Multiply,Enum.ModeOperation.Set),
+])
 
 const Blocks:Record<string,Block> = {
     "I": new Block(
