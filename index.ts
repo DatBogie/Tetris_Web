@@ -846,15 +846,18 @@ class Game {
         }
     }
     private static async handleClears() : Promise<boolean> {
-        var cFlag = false;
+        var cFlag:boolean = false;
+        let lineCount:number = 0;
         Game.BlockCanvas.ClearCanvas();
         for (let y=0; y < Game.Height; y++) {
             if (Game._data[y].every(col=>col!==0)) {
                 await Game.EraseLine(Game, y);
+                console.log("cleared line");
+                lineCount++;
                 for (let oY=y-1; oY>=0; oY--) {
                     for (let x=0; x<Game.Width; x++) {
                         Game._data[oY+1][x] = Game._data[oY][x];
-                        cFlag = true;
+                        if (!cFlag) cFlag = true;
                     }
                 }
             }
@@ -867,6 +870,7 @@ class Game {
                 }
             }
         }
+        if (lineCount > 0) Game.Score += Enum.BaseScores.Clears.get(lineCount-1);
         return cFlag;
     }
     static async BlockStamped(self:BlockInstance) {
@@ -1246,7 +1250,6 @@ class BlockInstance extends Block {
         if (!this.IsValidPosition(undefined,undefined,this.Shapes[newRot])) {
             for (let i=1; i<=this.Shapes[newRot][0].length; i++) {
                 if ((this.targetPos?.X ?? 0)-i < 0) break;
-                console.log(i,this.IsValidPosition((this.targetPos?.X ?? 0)-i,undefined,this.Shapes[newRot]));
                 if (this.IsValidPosition((this.targetPos?.X ?? 0)-i,undefined,this.Shapes[newRot])) {
                     console.log((this.targetPos?.X ?? 0)-i);
                     console.log("left");
