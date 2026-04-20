@@ -1271,7 +1271,7 @@ class BlockInstance extends Block {
                 .onUpdate(data => {
                 this._x = data.X;
                 this._y = data.Y;
-                this.Draw(undefined);
+                this.Draw();
             });
             var isComplete = false;
             const fin = () => {
@@ -1305,25 +1305,24 @@ class BlockInstance extends Block {
         let dir = (reverse) ? -1 : 1;
         const newRot = Utils.OverflowOperate(this.Rotation, dir, 0, 3);
         if (!this.IsValidPosition(undefined, undefined, this.Shapes[newRot])) {
-            for (let i = 3; i <= this.Shapes[newRot][0].length; i++) {
-                if ((this.targetPos?.X ?? 0) - i < 0)
-                    break;
+            for (let i = 1; i <= this.Shapes[newRot][0].length; i++) {
                 if (this.IsValidPosition((this.targetPos?.X ?? 0) - i, undefined, this.Shapes[newRot])) {
-                    console.log((this.targetPos?.X ?? 0) - i);
-                    console.log("left");
+                    this.tween.stop();
                     this.Rotation = newRot;
                     this._x = (this.targetPos?.X ?? 0) - i;
+                    this.targetPos = new Point(this._x, this.targetPos?.Y ?? 0);
+                    this.Draw();
+                    return true;
+                }
+                if (this.IsValidPosition((this.targetPos?.X ?? 0) + i, undefined, this.Shapes[newRot])) {
+                    this.tween.stop();
+                    this.Rotation = newRot;
+                    this._x = (this.targetPos?.X ?? 0) + i;
+                    this.targetPos = new Point(this._x, this.targetPos?.Y ?? 0);
                     this.Draw();
                     return true;
                 }
             }
-            // if (this.IsValidPosition((this.targetPos?.X ?? 0)+1,undefined,this.Shapes[newRot])) {
-            //     console.log("right");
-            //     this.Rotation = newRot;
-            //     this._x = (this.targetPos?.X ?? 0)+1;
-            //     this.Draw();
-            //     return true;
-            // }
             return false;
         }
         this.Rotation = newRot;
