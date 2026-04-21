@@ -1,6 +1,7 @@
 import { sfxr } from "jsfxr";
 import click from "./Sounds/click.json" with { type: 'json' };
 import { Tween, Easing } from "@tweenjs/tween.js";
+import { marked } from "marked";
 
 const clickWar = document.getElementById("click-req");
 clickWar?.addEventListener("click",()=>{
@@ -1360,7 +1361,7 @@ class BlockInstance extends Block {
 
 const Levels:InfiniteArray<Level> = new InfiniteArray([
     new Level("a",1.0,0,Enum.ModeOperation.Set,Enum.ModeOperation.Set),
-    new Level("b",1.25,1000,Enum.ModeOperation.Multiply,Enum.ModeOperation.Set),
+    new Level("b",10.0,1000,Enum.ModeOperation.Multiply,Enum.ModeOperation.Set),
 ]);
 
 const Blocks:Record<string,Block> = {
@@ -1747,6 +1748,16 @@ document.getElementById("mods-back")?.addEventListener("click",()=>{
     updateSelectionButtons();
 });
 
+document.getElementById("pause-about")?.addEventListener("click",()=>{
+    if (document.querySelector(".modal.active")) return;
+    document.getElementById("about")?.classList.add("active");
+    updateSelectionButtons();
+});
+document.getElementById("about-back")?.addEventListener("click",()=>{
+    document.getElementById("about")?.classList.remove("active");
+    updateSelectionButtons();
+});
+
 document.getElementById("pause-settings")?.addEventListener("click",()=>{
     if (document.querySelector(".modal.active")) return;
     SettingsBuffer.clear();
@@ -1849,3 +1860,17 @@ function preventKeyEvents(el:HTMLInputElement|HTMLElement) {
 (document.querySelectorAll(".keyboard-selectable") as NodeListOf<HTMLElement>).forEach(el=>{
     preventKeyEvents(el);
 });
+
+document.addEventListener("click",event=>{
+    const trg:HTMLLinkElement = event.target as HTMLLinkElement;
+    if (trg.tagName === "A") {
+        event.preventDefault();
+        open(trg.href);
+    }
+});
+
+let readme:Response|string = await fetch("./README.md");
+readme = await readme.text();
+readme = await marked.parse(readme);
+const rmt = document.getElementById("about-readme");
+if (rmt) rmt.innerHTML = readme;

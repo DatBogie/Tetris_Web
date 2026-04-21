@@ -14,7 +14,8 @@
         {
             "imports": {
                 "@tweenjs/tween.js": "https://cdn.jsdelivr.net/npm/@tweenjs/tween.js/dist/tween.esm.js",
-                "jsfxr": "https://esm.sh/jsfxr@1.4.0"
+                "jsfxr": "https://esm.sh/jsfxr@1.4.0",
+                "marked": "https://esm.sh/marked@18.0.2"
             }
         }
     </script>
@@ -53,6 +54,7 @@
                     <button id="pause-restart" class="keyboard-selectable">Restart</button>
                     <button id="pause-settings" class="keyboard-selectable">Settings</button>
                     <button id="pause-mods" class="keyboard-selectable">Mods</button>
+                    <button id="pause-about" class="keyboard-selectable">About</button>
                 </div>
             </div>
             <div id="settings" class="center modal">
@@ -167,6 +169,13 @@
                 <div>Mods</div>
                 <div id="mods-content" class="center modal-content modal-buttons">
                     <button id="mods-back" class="keyboard-selectable modal-back">Back</button>
+                </div>
+            </div>
+            <div id="about" class="center modal">
+                <div>About</div>
+                <div id="about-content" class="center modal-content modal-buttons">
+                    <p id="about-readme"></p>
+                    <button id="about-back" class="keyboard-selectable modal-back">Back</button>
                 </div>
             </div>
         </div>
