@@ -68,7 +68,10 @@
                                     <li><span>Ghost Block Opacity: </span><input id="settings-ghost-opacity" type="number" class="percent keyboard-selectable" min="0" max="100"><span>%</span></li>
                                     <li><span>AccuBlock Opacity: </span><input id="settings-raw-opacity" type="number" class="percent keyboard-selectable" min="0" max="100"><span>%</span></li>
                                     <hr>
+                                    <li title="The maximum speed multiplier the vanilla game can achieve after moving up a level."><span>Natural Max Speed: </span><input id="settings-game-max-speed" type="number" class="keyboard-selectable" data-funcs="NewGame" min="1" max="10"><span>&times;</span></li>
+                                    <li><span>Lock Delay: </span><input id="settings-game-lock-delay" type="number" class="int keyboard-selectable" min="0" max="2000" data-funcs="NewGame"><span>ms</span></li>
                                     <li><span>Game Speed: </span><input id="settings-game-speed-mul" type="number" class="keyboard-selectable" data-funcs="NewGame" min="0" max="100"><span>&times;</span></li>
+                                    <hr>
                                     <li><span>Game Width: </span><input id="settings-game-width" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" min="4" max="1000"><span>px</span></li>
                                     <li><span>Game Height: </span><input id="settings-game-height" type="number" class="int keyboard-selectable" data-funcs="NewGame,DrawGrid" min="4" max="1000"><span>px</span></li>
                                     <li><span>Gravity: </span><input id="settings-physics" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="NewGame"></li>
@@ -89,7 +92,7 @@
                                 <ul class="layout left-align">
                                     <li><span>Animations: </span><input id="settings-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
                                     <li><span>Animate Ghost Block: </span><input id="settings-ghost-anims" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
-                                    <li><span>Animation Move Duration: </span><input id="settings-anim-move-time" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li><span>Animation Move Duration: </span><input id="settings-anim-move-time" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
                                     <li><span>Move Block Ease: </span><span><select id="settings-ease-style-move" class="keyboard-selectable ease">
                                         <option>Linear</option>
                                         <option>Sinusoidal</option>
@@ -109,7 +112,7 @@
                                         <option>Out</option>
                                     </select></span></li>
                                     <hr>
-                                    <li><span>Animation Drop Duration: </span><input id="settings-anim-drop-time" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li><span>Animation Drop Duration: </span><input id="settings-anim-drop-time" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
                                     <li><span>Drop Block Ease: </span><span><select id="settings-ease-style-drop" class="keyboard-selectable ease">
                                         <option>Linear</option>
                                         <option>Sinusoidal</option>
@@ -129,10 +132,11 @@
                                         <option>Out</option>
                                     </select></span></li>
                                     <hr>
-                                    <li><span>Animation Line Clear Duration: </span><input id="settings-anim-clear-time" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li><span>Animation Line Clear Duration: </span><input id="settings-anim-clear-time" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
                                     <li title="True:&NewLine;- Time per block: (Line Clear Duration / Game Width)&NewLine;&NewLine;False:&NewLine;- Time per block: Line Clear Duration"><span>Fixed Line Clear Duration: </span><input id="settings-anim-clear-time-fixed" type="checkbox" autocomplete="off" class="keyboard-selectable"></li>
                                     <hr>
                                     <li><span>Hide Grid: </span><input id="settings-grid-disabled" type="checkbox" autocomplete="off" class="keyboard-selectable" data-funcs="DrawGrid"></li>
+                                    <li><span>Block Scale: </span><input id="settings-fun-block-scale" type="number" class="keyboard-selectable" data-funcs="RedrawCanvas,RedrawHeldBlock,RedrawNextBlocks" min="0" max="2"><span>&times;</span></li>
                                 </ul>
                             </li>
                         </details>
@@ -140,11 +144,11 @@
                             <summary class="center keyboard-selectable">Keybinds</summary>
                             <li class="details-content">
                                 <ul class="layout left-align">
-                                    <li title="Delay between repeated movement presses.&NewLine;Disable repeating inputs with '0'."><span>Move Key Repeat Interval: </span><input id="settings-key-repeat-move-int" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
-                                    <li title="Delay before starting to repeat movement presses (will cancel if key is released during this time)"><span>Move Key Repeat Start Delay: </span><input id="settings-key-repeat-move-delay" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li title="Delay between repeated movement presses.&NewLine;Disable repeating inputs with '0'."><span>Move Key Repeat Interval: </span><input id="settings-key-repeat-move-int" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li title="Delay before starting to repeat movement presses (will cancel if key is released during this time)"><span>Move Key Repeat Start Delay: </span><input id="settings-key-repeat-move-delay" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
                                     <hr>
-                                    <li title="Delay between repeated presses.&NewLine;Disable repeating inputs with '0'."><span>Key Repeat Interval: </span><input id="settings-key-repeat-int" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
-                                    <li title="Delay before starting to repeat presses (will cancel if key is released during this time)"><span>Key Repeat Start Delay: </span><input id="settings-key-repeat-delay" type="number" class="keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li title="Delay between repeated presses.&NewLine;Disable repeating inputs with '0'."><span>Key Repeat Interval: </span><input id="settings-key-repeat-int" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
+                                    <li title="Delay before starting to repeat presses (will cancel if key is released during this time)"><span>Key Repeat Start Delay: </span><input id="settings-key-repeat-delay" type="number" class="int keyboard-selectable" min="0" max="1000"><span>ms</span></li>
                                     <hr>
                                     <li><span>Move Left: </span><button class="keybind keyboard-selectable" data-bind="Left" data-key="ArrowLeft"></button></li>
                                     <li><span>Move Right: </span><button class="keybind keyboard-selectable" data-bind="Right" data-key="ArrowRight"></button></li>

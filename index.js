@@ -494,6 +494,9 @@ const scoreGateText = document.getElementById("score-gate");
 const scoreGateRelText = document.getElementById("score-gate-rel");
 const scoreGatePercentText = document.getElementById("score-gate-percent");
 class Game {
+    static MaxSpeed = 4.0;
+    static BlockScale = 1.0;
+    static LockDelay = 500;
     static score = 0;
     static set Score(score) {
         Game.score = Math.round(score * Game.Level.ScoreMultiplier());
@@ -628,6 +631,9 @@ class Game {
     static HoldCanvas = new Canvas2D(document.getElementById("hold"));
     static NextCanvas = new Canvas2D(document.getElementById("next"));
     static LevelIndex;
+    static get LevelNumber() {
+        return Game.LevelIndex + 1;
+    }
     static get Level() {
         return Levels.get(this.LevelIndex);
     }
@@ -638,7 +644,7 @@ class Game {
         this.LevelIndex = level;
         this.LevelSpeed = this.Level.Speed;
         this.ScoreGate = this.NextLevel.ScoreGate;
-        levelText.textContent = this.LevelIndex.toString();
+        levelText.textContent = (this.LevelIndex + 1).toString();
         scoreGateText.textContent = this.ScoreGate.toString();
         scoreGateRelText.textContent = (this.ScoreGate - this.score).toString();
         scoreGatePercentText.textContent = Math.trunc((this.score / this.ScoreGate) * 100).toString();
@@ -699,13 +705,22 @@ class Game {
     static NewGame() {
         Game.Reset();
     }
+    static rgt() {
+        Game._thread_id = setTimeout(Game.GameTick, Game.Speed);
+    }
     static async GameTick() {
         if (Game.Paused)
-            return;
+            return Game.rgt();
         const moveRes = await Game.CurrentBlock?.Move(0, 1, undefined, true);
         if (Game.CurrentBlock && moveRes === false) {
-            await Game.CurrentBlock.Stamp();
+            const curBlock = Game.CurrentBlock;
+            setTimeout(async () => {
+                if (curBlock !== Game.CurrentBlock)
+                    return;
+                await Game.CurrentBlock?.Stamp();
+            }, Game.LockDelay);
         }
+        return Game.rgt();
     }
     static StartGame() {
         if (Game._running)
@@ -717,8 +732,8 @@ class Game {
         Game.CurrentBlock = Game.RandomBlock();
         Game.CurrentBlock?.Draw();
         if (Game._thread_id !== null)
-            clearInterval(Game._thread_id);
-        Game._thread_id = setInterval(Game.GameTick, Game.Speed);
+            clearTimeout(Game._thread_id);
+        Game.rgt();
     }
     static blockFeed;
     static randBlock() {
@@ -740,41 +755,16 @@ class Game {
             Game.CurrentBlock = new BlockInstance(buffer);
         }
         Game.CurrentBlock?.Draw();
-        Game.HoldCanvas.ClearCanvas();
+        Game.RedrawHeldBlock();
         if (!Game.heldBlock)
             return;
-        const block = new BlockInstance(Game.heldBlock).Clone();
-        let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
-        if (lY === hY)
-            hY = 0;
-        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true); // Draw hold block
-        if (!Game.DisableGrid) {
-            Game.HoldCanvas.Context.strokeStyle = "#18192680";
-            BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true, true);
-        }
         Game.HoldCanvas.Canvas.animate([{ scale: .9 }, { scale: 1 }], { easing: "ease", duration: 100 });
     }
     static RandomBlock() {
         Game.blockFeed.push(Game.randBlock());
         const newBlock = Game.blockFeed.get(0) ? new BlockInstance(Game.blockFeed.get(0)) : undefined;
-        Game.NextCanvas.ClearCanvas();
-        const positions = [];
-        for (let i = 1; i < Game.blockFeed.length; i++) {
-            const blockShape = Game.blockFeed.get(i);
-            if (!blockShape)
-                continue;
-            const block = new BlockInstance(blockShape).Clone();
-            let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
-            const prevBlock = Game.blockFeed.get(i - 1) && positions[i - 1] ? new BlockInstance(Game.blockFeed.get(i - 1)) : undefined;
-            const [pX, pY] = [Game.Width / 2 - block.CurrentShape[0].length / 2, (positions[i - 1]?.Y ?? 5) + (prevBlock?.LowestPoint.Y ?? -1) + 1 - hY + 1];
-            positions[i] = new Point(pX, pY);
-            BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true); // Draw next block
-            if (!Game.DisableGrid) {
-                Game.NextCanvas.Context.strokeStyle = "#18192680";
-                BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true, true);
-            }
-            Game.NextCanvas.Canvas.animate([{ scale: .9 }, { scale: 1 }], { easing: "ease", duration: 100 });
-        }
+        Game.RedrawNextBlocks();
+        Game.NextCanvas.Canvas.animate([{ scale: .9 }, { scale: 1 }], { easing: "ease", duration: 100 });
         return newBlock;
     }
     static get NextBlock() {
@@ -869,6 +859,41 @@ class Game {
             }
         }
     }
+    static RedrawHeldBlock() {
+        Game.HoldCanvas.ClearCanvas();
+        if (!Game.heldBlock)
+            return;
+        const block = new BlockInstance(Game.heldBlock).Clone();
+        let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
+        if (lY === hY)
+            hY = 0;
+        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true); // Draw hold block
+        if (!Game.DisableGrid) {
+            Game.HoldCanvas.Context.strokeStyle = "#18192680";
+            BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true, true);
+        }
+    }
+    static RedrawNextBlocks() {
+        Game.NextCanvas.ClearCanvas();
+        if (!Game.blockFeed)
+            return;
+        const positions = [];
+        for (let i = 1; i < Game.blockFeed.length; i++) {
+            const blockShape = Game.blockFeed.get(i);
+            if (!blockShape)
+                continue;
+            const block = new BlockInstance(blockShape).Clone();
+            let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
+            const prevBlock = Game.blockFeed.get(i - 1) && positions[i - 1] ? new BlockInstance(Game.blockFeed.get(i - 1)) : undefined;
+            const [pX, pY] = [Game.Width / 2 - block.CurrentShape[0].length / 2, (positions[i - 1]?.Y ?? 5) + (prevBlock?.LowestPoint.Y ?? -1) + 1 - hY + 1];
+            positions[i] = new Point(pX, pY);
+            BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true); // Draw next block
+            if (!Game.DisableGrid) {
+                Game.NextCanvas.Context.strokeStyle = "#18192680";
+                BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true, true);
+            }
+        }
+    }
     static RedrawCanvas() {
         Game.StaleCanvas.ClearCanvas();
         for (let y = 0; y < Game.Height; y++) {
@@ -877,7 +902,10 @@ class Game {
                 if (col === 0)
                     continue;
                 Game.StaleCanvas.Context.fillStyle = (col instanceof BlockData) ? col.Color.RGBA : "white";
-                Game.StaleCanvas.Context.fillRect(Game.GameOffset.X + x * Game.PixelSize, Game.GameOffset.Y + y * Game.PixelSize, Game.PixelSize, Game.PixelSize);
+                let [_x, _y, _w, _h] = [Game.GameOffset.X + x * Game.PixelSize, Game.GameOffset.Y + y * Game.PixelSize, Game.PixelSize * Game.BlockScale, Game.PixelSize * Game.BlockScale];
+                _x -= (_w - _w / Game.BlockScale) / 2;
+                _y -= (_h - _h / Game.BlockScale) / 2;
+                Game.StaleCanvas.Context.fillRect(_x, _y, _w, _h);
             }
         }
     }
@@ -903,7 +931,6 @@ class Game {
         for (let y = 0; y < Game.Height; y++) {
             if (Game._data[y].every(col => col !== 0)) {
                 await Game.EraseLine(Game, y);
-                console.log("cleared line");
                 lineCount++;
                 for (let oY = y - 1; oY >= 0; oY--) {
                     for (let x = 0; x < Game.Width; x++) {
@@ -998,6 +1025,9 @@ class Signal {
 }
 const settingsWin = document.getElementById("settings");
 const Settings = {
+    MaxSpeed: settingsWin?.querySelector("#settings-game-max-speed"),
+    BlockScale: settingsWin?.querySelector("#settings-fun-block-scale"),
+    LockDelay: settingsWin?.querySelector("#settings-game-lock-delay"),
     KeyRepeatDelay: settingsWin?.querySelector("#settings-key-repeat-delay"),
     KeyRepeatInterval: settingsWin?.querySelector("#settings-key-repeat-int"),
     MoveKeyRepeatDelay: settingsWin?.querySelector("#settings-key-repeat-move-delay"),
@@ -1057,6 +1087,8 @@ RejectSettingsBuffer.Connect(() => {
 });
 function handleSettings() {
     for (const [k, el] of Object.entries(Settings)) {
+        const li = el.parentElement;
+        li.title = `${li.title !== "" ? `${li.title}\n` : ""}Default: ${getAttr(Game, k)}`;
         const label = document.getElementById(el.id + "-label");
         if (label)
             label.textContent = getAttr(Game, k);
@@ -1342,7 +1374,9 @@ class BlockInstance extends Block {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                const [_x, _y, _w, _h] = [Game.CanvasOffset(canvas).X + x * Game.PixelSize + oX * Game.PixelSize, Game.CanvasOffset(canvas).Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize * width, Game.PixelSize * height];
+                let [_x, _y, _w, _h] = [Game.CanvasOffset(canvas).X + x * Game.PixelSize + oX * Game.PixelSize, Game.CanvasOffset(canvas).Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize * width * Game.BlockScale, Game.PixelSize * height * Game.BlockScale];
+                _x -= (_w - _w / Game.BlockScale) / 2;
+                _y -= (_h - _h / Game.BlockScale) / 2;
                 if (!outline)
                     canvas.Context.fillRect(_x, _y, _w, _h);
                 else
@@ -1425,8 +1459,8 @@ class BlockInstance extends Block {
     }
 }
 const Levels = new InfiniteArray([
-    new Level("a", 1.0, 0, Enum.ModeOperation.Set, Enum.ModeOperation.Set),
-    new Level("b", 10.0, 1000, Enum.ModeOperation.Multiply, Enum.ModeOperation.Set),
+    new Level("1", 1.0, 0, Enum.ModeOperation.Set, Enum.ModeOperation.Set),
+    new Level("2..", 1.05, 1000, (x, y) => Math.max(1.064 ^ Game.LevelNumber, Game.MaxSpeed), Enum.ModeOperation.Set)
 ]);
 const Blocks = {
     "I": new Block([
