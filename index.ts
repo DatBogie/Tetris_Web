@@ -685,7 +685,7 @@ class Game {
             const curBlock = Game.CurrentBlock;
             if (Game._lock_thread_id) clearTimeout(Game._lock_thread_id);
             Game._lock_thread_id = setTimeout(async ()=>{
-                if (curBlock !== Game.CurrentBlock) return;
+                if (curBlock !== Game.CurrentBlock || Game.CurrentBlock?.IsValidPosition(undefined,(Game.CurrentBlock?.TargetPos?.Y ?? 0)+1)) return;
                 await Game.CurrentBlock?.Stamp();
             },Game.LockDelay);
         } else
@@ -1214,6 +1214,9 @@ class BlockInstance extends Block {
     }
     private tween:Tween = new Tween([]);
     private targetPos:Point|undefined;
+    get TargetPos() : Point|undefined {
+        return this.targetPos;
+    }
     private dropping:boolean = false;
     private isFake:boolean = false;
     Clone() : BlockInstance {

@@ -718,7 +718,7 @@ class Game {
             if (Game._lock_thread_id)
                 clearTimeout(Game._lock_thread_id);
             Game._lock_thread_id = setTimeout(async () => {
-                if (curBlock !== Game.CurrentBlock)
+                if (curBlock !== Game.CurrentBlock || Game.CurrentBlock?.IsValidPosition(undefined, (Game.CurrentBlock?.TargetPos?.Y ?? 0) + 1))
                     return;
                 await Game.CurrentBlock?.Stamp();
             }, Game.LockDelay);
@@ -1270,6 +1270,9 @@ class BlockInstance extends Block {
     }
     tween = new Tween([]);
     targetPos;
+    get TargetPos() {
+        return this.targetPos;
+    }
     dropping = false;
     isFake = false;
     Clone() {

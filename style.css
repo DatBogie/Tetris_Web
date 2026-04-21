@@ -156,11 +156,13 @@ body {
 }
 
 #pause-btns, .modal > div:has(> button), .modal-buttons {
-    gap: 12px;
+    justify-content: space-evenly;
 }
 
 button, input, summary, select {
     transition: scale 200ms ease, border-color 200ms ease, background-color 200ms ease, box-shadow 200ms ease;
+    min-width: 0;
+    overflow: hidden;
 }
 
 button {
