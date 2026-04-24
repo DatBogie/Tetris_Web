@@ -221,6 +221,9 @@ var Enum;
     })(UIThemeKey = Enum.UIThemeKey || (Enum.UIThemeKey = {}));
 })(Enum || (Enum = {}));
 class Utils {
+    static parseBoolean(v) {
+        return v === "1";
+    }
     static OverflowOperate(n0, n1, underflow, overflow, operation = Enum.Operation.Addition) {
         if (typeof operation === "string")
             operation = Enum.OperationFromString(operation);
@@ -524,6 +527,19 @@ class Game {
     static MaxSpeed = 4.0;
     static BlockScale = 1.0;
     static LockDelay = 500;
+    static highScore;
+    static get HighScore() {
+        return Game.highScore;
+    }
+    static set HighScore(score) {
+        Game.highScore = score;
+        try {
+            localStorage.setItem("HighScore", Game.score.toString());
+        }
+        catch (error) {
+            alert(`Failed to save highscore: ${error}`);
+        }
+    }
     static score = 0;
     static set Score(score) {
         Game.score = Math.round(score * Game.Level.ScoreMultiplier());
@@ -700,6 +716,12 @@ class Game {
         return Game._time;
     }
     static Reset() {
+        if (!Game.HighScore) {
+            let highscore = localStorage.getItem("HighScore");
+            Game.highScore = highscore ? parseInt(highscore) : 0;
+        }
+        if (Game.score > Game.HighScore)
+            Game.HighScore = Game.score;
         Game._running = false;
         Game.TogglePause(true);
         Game._time = 0;
@@ -1079,6 +1101,33 @@ const Settings = {
 };
 const SettingsBuffer = new Map();
 const settingsTitle = document.getElementById("settings-title");
+function LoadSettings() {
+    for (let i = 0; i < localStorage.length; i++) {
+        try {
+            let k = localStorage.key(i);
+            if (!k || !k.startsWith("SETTINGS/"))
+                continue;
+            const strValue = localStorage.getItem(k);
+            if (!strValue)
+                continue;
+            k = k.slice("SETTINGS/".length);
+            const jsonValue = JSON.parse(strValue);
+            let tValue = jsonValue.value;
+            switch (jsonValue.type) {
+                case "boolean":
+                    tValue = Utils.parseBoolean(tValue);
+                case "number":
+                    tValue = parseFloat(tValue);
+                case "string":
+                    setAttr(Game, k, tValue);
+                    break;
+            }
+        }
+        catch (error) {
+            alert(`Error whilst loading data: ${error}`);
+        }
+    }
+}
 function UpdateSettingsBuffer(k, data) {
     const label = document.getElementById(data.el.id + "-label");
     if (label)
@@ -1094,7 +1143,8 @@ function UpdateSettingsBuffer(k, data) {
 }
 function WriteSettingsBuffer() {
     for (const [k, v] of SettingsBuffer.entries()) {
-        setAttr(Game, k, v.value);
+        setAttr(Game, k, JSON.stringify({ value: v.value, type: typeof v.value }));
+        localStorage.setItem(`SETTINGS/${k}`, v.value.toString());
         if (v.funcs && v.funcs.length !== 0) {
             for (const f of v.funcs) {
                 let x = getAttr(Game, f);
@@ -1214,7 +1264,7 @@ class Level {
     speed;
     clearGate;
     scoreMultiplier = function (index) {
-        return 1 + (index / 25);
+        return 1 + (index / 100);
     };
     ScoreMultiplier() {
         return this.scoreMultiplier(Levels.indexOf(this));
@@ -1248,7 +1298,6 @@ class BlockInstance extends Block {
     constructor(block) {
         super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width / 2 - this.CurrentShape[0].length / 2);
-        // this._y = 0-this.HighestPoint.Y;
         this.targetPos = new Point(this._x, this._y);
     }
     _x = 0;
@@ -1485,7 +1534,7 @@ class BlockInstance extends Block {
 }
 const Levels = new InfiniteArray([
     new Level("1", 1.0, () => 10, Enum.ModeOperation.Set),
-    new Level("2..", 1.15, undefined, (x, y) => Math.max((y ^ Game.LevelNumber) / 100, Game.MaxSpeed))
+    new Level("2..", 1.15, undefined, (x, y) => Math.max(((y + 2) ^ Game.LevelNumber) / 100, Game.MaxSpeed))
 ]);
 const Blocks = {
     "I": new Block([
@@ -1663,22 +1712,6 @@ class Mod {
     Description;
     Blocks;
 }
-function onResize() {
-    const cond = document.documentElement.scrollWidth <= window.innerWidth || document.documentElement.scrollHeight <= window.innerHeight;
-    document.querySelectorAll(".game-canvas, .modal").forEach(canvas => {
-        if (cond) {
-            canvas.style.height = "100%";
-            canvas.style.width = "auto";
-        }
-        else {
-            canvas.style.height = "auto";
-            canvas.style.width = "100%";
-        }
-    });
-}
-// const resizeObserver = new ResizeObserver(onResize);
-// resizeObserver.observe(document.body);
-// window.addEventListener("resize",onResize);
 window.addEventListener("click", loadSFX);
 function getRangeStep(range) {
     const int = range.classList.contains("int");

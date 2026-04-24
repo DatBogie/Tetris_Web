@@ -184,6 +184,9 @@ namespace Enum {
 }
 
 class Utils {
+    static parseBoolean(v:string) : boolean {
+        return v === "1";
+    }
     static OverflowOperate(n0:number, n1:number, underflow:number, overflow:number, operation:Enum.Operation|string=Enum.Operation.Addition) : number {
         if (typeof operation === "string") operation = Enum.OperationFromString(operation);
         if (operation === Enum.Operation.Addition)
@@ -488,6 +491,18 @@ class Game {
     static MaxSpeed:number = 4.0;
     static BlockScale:number = 1.0;
     static LockDelay:number = 500;
+    private static highScore:number;
+    static get HighScore() : number {
+        return Game.highScore;
+    }
+    static set HighScore(score:number) {
+        Game.highScore = score;
+        try {
+            localStorage.setItem("HighScore",Game.score.toString());
+        } catch (error) {
+            alert(`Failed to save highscore: ${error}`);
+        } 
+    }
     private static score:number = 0;
     static set Score(score:number) {
         Game.score = Math.round(score*Game.Level.ScoreMultiplier());
@@ -669,6 +684,11 @@ class Game {
         return Game._time;
     }
     static Reset() {
+        if (!Game.HighScore) {
+            let highscore = localStorage.getItem("HighScore");
+            Game.highScore = highscore? parseInt(highscore) : 0;
+        }
+        if (Game.score > Game.HighScore) Game.HighScore = Game.score;
         Game._running = false;
         Game.TogglePause(true);
         Game._time = 0;
@@ -1028,6 +1048,30 @@ type bufferData = {
     el:HTMLSelectElement|HTMLInputElement,
     funcs:string[]
 }
+function LoadSettings() {
+    for (let i=0; i<localStorage.length; i++) {
+        try {
+            let k:string|null = localStorage.key(i);
+            if (!k || !k.startsWith("SETTINGS/")) continue;
+            const strValue:string|null = localStorage.getItem(k);
+            if (!strValue) continue;
+            k = k.slice("SETTINGS/".length);
+            const jsonValue:{value:any,type:string} = JSON.parse(strValue);
+            let tValue:any = jsonValue.value;
+            switch (jsonValue.type) {
+                case "boolean":
+                    tValue = Utils.parseBoolean(tValue);
+                case "number":
+                    tValue = parseFloat(tValue);
+                case "string":
+                    setAttr(Game,k,tValue);
+                    break;
+            }
+        } catch (error) {
+            alert(`Error whilst loading data: ${error}`);
+        }
+    }
+}
 function UpdateSettingsBuffer(k:string, data:bufferData) : void {
     const label:HTMLElement|null = document.getElementById(data.el.id+"-label");
     if (label) label.textContent = data.value;
@@ -1043,6 +1087,7 @@ function UpdateSettingsBuffer(k:string, data:bufferData) : void {
 function WriteSettingsBuffer() : void {
     for (const [k,v] of SettingsBuffer.entries()) {
         setAttr(Game,k,v.value);
+        localStorage.setItem(`SETTINGS/${k}`,JSON.stringify({value:v,type:typeof v.value}));
         if (v.funcs && v.funcs.length !== 0) {
             for (const f of v.funcs) {
                 let x:Function|undefined = getAttr(Game,f);
@@ -1158,7 +1203,7 @@ class Level {
     private readonly speed:number;
     private readonly clearGate:()=>number;
     private readonly scoreMultiplier:(index:number)=>number = function(index:number) : number {
-        return 1+(index/25);
+        return 1+(index/100);
     };
     ScoreMultiplier() {
         return this.scoreMultiplier(Levels.indexOf(this as never));
@@ -1194,7 +1239,6 @@ class BlockInstance extends Block {
     constructor(block:Block) {
         super(block.Shapes, block.Data, block.Symbol);
         this._x = Math.floor(Game.Width/2-this.CurrentShape[0].length/2);
-        // this._y = 0-this.HighestPoint.Y;
         this.targetPos = new Point(this._x,this._y);
     }
     private _x:number = 0;
@@ -1415,7 +1459,7 @@ class BlockInstance extends Block {
 
 const Levels:InfiniteArray<Level> = new InfiniteArray([
     new Level("1",1.0,()=>10,Enum.ModeOperation.Set),
-    new Level("2..",1.15,undefined,(x:number,y:number)=>Math.max((y^Game.LevelNumber)/100,Game.MaxSpeed))
+    new Level("2..",1.15,undefined,(x:number,y:number)=>Math.max(((y+2)^Game.LevelNumber)/100,Game.MaxSpeed))
 ]);
 
 const Blocks:Record<string,Block> = {
@@ -1615,23 +1659,6 @@ class Mod {
     readonly Description:string;
     readonly Blocks?:Record<number, Block>;
 }
-
-function onResize() {
-    const cond = document.documentElement.scrollWidth <= window.innerWidth || document.documentElement.scrollHeight <= window.innerHeight;
-    document.querySelectorAll<HTMLElement>(".game-canvas, .modal").forEach(canvas=>{
-        if (cond) {
-            canvas.style.height = "100%";
-            canvas.style.width = "auto";
-        } else {
-            canvas.style.height = "auto";
-            canvas.style.width = "100%";
-        }
-    });
-}
-
-// const resizeObserver = new ResizeObserver(onResize);
-// resizeObserver.observe(document.body);
-// window.addEventListener("resize",onResize);
 
 window.addEventListener("click",loadSFX)
 
