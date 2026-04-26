@@ -1,8 +1,6 @@
-// Import Libraries
 import { sfxr } from "jsfxr";
-import { Tween, Easing } from "@tweenjs/tween.js"; // Easing/Tweening properties
-import { marked } from "marked"; // Markdown renderer
-// Import SFX
+import { Tween, Easing } from "@tweenjs/tween.js";
+import { marked } from "marked";
 import __sfx_click from "./Sounds/click.json" with { type: 'json' };
 import __sfx_clear from "./Sounds/clear.json" with { type: 'json' };
 import __sfx_gameover from "./Sounds/game-over.json" with { type: 'json' };
@@ -13,7 +11,6 @@ import __sfx_block_rotate from "./Sounds/block-rotate.json" with { type: 'json' 
 import __sfx_negative from "./Sounds/negative.json" with { type: 'json' };
 import __sfx_block_move from "./Sounds/block-move.json" with { type: 'json' };
 import __sfx_hold from "./Sounds/hold.json" with { type: 'json' };
-// Wrapper for sfxr sounds implementing dynamic volume via reconstruction
 class Sound {
     constructor(json) {
         if (__sfx_is_loaded)
@@ -48,7 +45,6 @@ class Sound {
         this.sound = sfxr.toAudio(this.json);
     }
 }
-// Declare Sounds
 var SFX = {
     click: new Sound(__sfx_click),
     clear: new Sound(__sfx_clear),
@@ -61,7 +57,6 @@ var SFX = {
     blockMove: new Sound(__sfx_block_move),
     hold: new Sound(__sfx_hold)
 };
-// 'Click to Enable Audio' prompt (needed to make sfxr not error, since <audio>s need a proper *mouse* input before working)
 var clickWar = document.getElementById("click-req");
 clickWar?.addEventListener("click", () => {
     updateSelectionButtons();
@@ -349,7 +344,6 @@ class Color {
         }
         return (!retInt ? parseFloat : parseInt)(n);
     }
-    // Adapted version of https://gist.github.com/mjackson/5311256 > hslToRgb()
     static fromHSLA(h, s, l, a) {
         s /= 100;
         l /= 100;
@@ -423,9 +417,6 @@ class Color {
         return this.RGBA;
     }
 }
-// Source - https://stackoverflow.com/a/39914235
-// Posted by Dan Dascalescu, modified by community. See post 'Timeline' for change history
-// Retrieved 2026-03-18, License - CC BY-SA 4.0
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 class FeedtapeArray {
     constructor(length) {
@@ -829,7 +820,7 @@ class Game {
         let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
         if (lY === hY)
             hY = 0;
-        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true); // Draw hold block
+        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true);
         if (!Game.DisableGrid) {
             Game.HoldCanvas.Context.strokeStyle = "#18192680";
             BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true, true);
@@ -849,7 +840,7 @@ class Game {
             const prevBlock = Game.blockFeed.get(i - 1) && positions[i - 1] ? new BlockInstance(Game.blockFeed.get(i - 1)) : undefined;
             const [pX, pY] = [Game.Width / 2 - block.CurrentShape[0].length / 2, (positions[i - 1]?.Y ?? 5) + (prevBlock?.LowestPoint.Y ?? -1) + 1 - hY + 1];
             positions[i] = new Point(pX, pY);
-            BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true); // Draw next block
+            BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true);
             if (!Game.DisableGrid) {
                 Game.NextCanvas.Context.strokeStyle = "#18192680";
                 BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true, true);
@@ -1487,12 +1478,10 @@ class BlockInstance extends Block {
             canvas.ClearCanvas();
         canvas.Context.fillStyle = this.Data.Color.RGBA;
         this._draw(canvas);
-        // Draw ghost block
         if (Game.GhostBlockOpacity > 0 && canvas === Game.BlockCanvas && this.LowestValidY > this._y) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.GhostBlockOpacity);
             this._draw(canvas, !Game.AnimGhostBlock ? this.targetPos?.X : this._x, this.LowestValidY);
         }
-        // Draw accublock
         if (Game.RawBlockOpacity > 0 && canvas === Game.BlockCanvas) {
             canvas.Context.fillStyle = this.Data.Color.WithOpacity(Game.RawBlockOpacity);
             this._draw(canvas, this.targetPos?.X, this.targetPos?.Y);
