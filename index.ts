@@ -426,6 +426,7 @@ const lineClearRelText:HTMLElement = document.getElementById("line-clear-rel") a
 const highScoreText:HTMLElement = document.getElementById("highscore") as HTMLElement;
 const newHighScoreBadge:HTMLElement = document.getElementById("new-highscore") as HTMLElement;
 
+var maxMovement:number = 0;
 class Game {
     static AutoPause:boolean = true;
     static LockMovement:boolean = false;
@@ -807,8 +808,16 @@ class Game {
     }
     static async InstantDrop(px:number,py:number) : Promise<undefined> {
         if (py >= Game.Height-1 || Game._data[py][px] === undefined) return;
+        let movement:number = 0;
+        for (let y=py+1; y<Game.Height; y++) {
+            if (Game._data[y][px] !== 0) break;
+            if (Game._data[py][px] === 0) continue;
+            movement++;
+        }
+        if (movement > maxMovement) maxMovement = movement;
         for (let y = py+1; y<Game.Height; y++) {
-            if (Game._data[y][px] !== 0) return;
+            if (Game._data[y][px] !== 0) break;
+            if (Game._data[py][px] === 0) continue;
             Game._data[y][px] = Game._data[py][px];
             Game._data[py][px] = 0;
             py++;
@@ -838,12 +847,13 @@ class Game {
             }
         }
         if (Game.Physics) {
+            maxMovement = 0;
             for (let y=Game.Height-1; y>0; y--) {
                 for (let x=0; x<Game.Width; x++) {
                     Game.InstantDrop(x,y);
                 }
             }
-            await sleep(Game.FixedAnimClearTime? Game.AnimClearTime/Game.Width : Game.AnimClearTime);
+            await sleep((Game.FixedAnimClearTime? Game.AnimClearTime/Game.Width : Game.AnimClearTime)*maxMovement);
             for (let y=Game.Height-1; y>0;  y--) {
                 if (Game._data[y].every(col=>col!==0)) {
                     cFlag = true;

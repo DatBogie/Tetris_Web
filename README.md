@@ -1,6 +1,7 @@
 # Bogetris
 
-APCSP 2026 Create Task Project
+APCSP 2026 Create Task Project  
+*Gameplay heavily inspired by The Tetris Company's [Tetris](https://tetris.com)®*
 
 ## License
 

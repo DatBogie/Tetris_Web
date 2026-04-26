@@ -192,6 +192,18 @@ button {
     padding-bottom: 7px;
 }
 
+a,h1,h2,h3,tr {
+    transition: box-shadow 200ms ease, padding 200ms ease, border-radius 200ms ease;
+}
+*:is(a,h1,h2,h3,tr):focus {
+    outline: none;
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-color: var(--accent) !important;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
 button:hover, button:focus, input:hover, input:focus, summary:hover, summary:focus, details[open] > summary, select:hover, select:focus {
     outline: none;
     transition: scale 200ms ease, background-color 200ms ease, border-color 200ms ease, color 200ms ease;
