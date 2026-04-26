@@ -76,6 +76,8 @@ var __sfx_is_loaded = false;
 var PauseMenuSel = 0;
 var PauseBtns = Array.from(document.querySelectorAll("#pause-btns > .keyboard-selectable"));
 function bounceAnim(el) {
+    if (!Game.Anims)
+        return;
     el.animate([{ scale: .925 }, { scale: 1 }], { easing: "ease", duration: 100 });
 }
 function loadSFX() {

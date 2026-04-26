@@ -79,6 +79,7 @@ var PauseMenuSel:number = 0;
 var PauseBtns:HTMLElement[] = Array.from(document.querySelectorAll("#pause-btns > .keyboard-selectable"));
 
 function bounceAnim(el:HTMLElement) {
+    if (!Game.Anims) return;
     el.animate([{ scale:.925 },{ scale:1 }],{easing:"ease",duration:100});
 }
 
