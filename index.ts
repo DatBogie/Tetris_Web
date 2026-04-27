@@ -1,9 +1,9 @@
-// Import Libraries
-import { sfxr } from "jsfxr";
+// Import libraries
+import { sfxr } from "jsfxr"; // SFX
 import { Tween, Easing } from "@tweenjs/tween.js"; // Easing/Tweening properties
 import { marked } from "marked"; // Markdown renderer
 
-// Import SFX
+// Import SFX from JSON files
 import __sfx_click from "./Sounds/click.json" with { type: 'json' };
 import __sfx_clear from "./Sounds/clear.json" with { type: 'json' };
 import __sfx_gameover from "./Sounds/game-over.json" with { type: 'json' };
