@@ -4,16 +4,16 @@ import { Tween, Easing } from "@tweenjs/tween.js"; // Easing/Tweening properties
 import { marked } from "marked"; // Markdown renderer
 
 // Import SFX from JSON files
-import __sfx_click from "./Sounds/click.json" with { type: 'json' };
-import __sfx_clear from "./Sounds/clear.json" with { type: 'json' };
-import __sfx_gameover from "./Sounds/game-over.json" with { type: 'json' };
-import __sfx_levelup from "./Sounds/level-up.json" with { type: 'json' };
-import __sfx_harddrop from "./Sounds/hard-drop.json" with { type: 'json' };
-import __sfx_newbest from "./Sounds/new-best.json" with { type: 'json' };
-import __sfx_block_rotate from "./Sounds/block-rotate.json" with { type: 'json' };
-import __sfx_negative from "./Sounds/negative.json" with { type: 'json' };
-import __sfx_block_move from "./Sounds/block-move.json" with { type: 'json' };
-import __sfx_hold from "./Sounds/hold.json" with { type: 'json' };
+import __sfx_click from "./Sounds/click.json" with { type: 'json' }; // UI selection
+import __sfx_clear from "./Sounds/clear.json" with { type: 'json' }; // Line clear
+import __sfx_gameover from "./Sounds/game-over.json" with { type: 'json' }; // Game over
+import __sfx_levelup from "./Sounds/level-up.json" with { type: 'json' }; // Level increase
+import __sfx_harddrop from "./Sounds/hard-drop.json" with { type: 'json' }; // Hard drop
+import __sfx_newbest from "./Sounds/new-best.json" with { type: 'json' }; // New highscore
+import __sfx_block_rotate from "./Sounds/block-rotate.json" with { type: 'json' }; // Rotate block
+import __sfx_negative from "./Sounds/negative.json" with { type: 'json' }; // Rotation failure/invalid rotation
+import __sfx_block_move from "./Sounds/block-move.json" with { type: 'json' }; // Move block/block fall
+import __sfx_hold from "./Sounds/hold.json" with { type: 'json' }; // Hold block
 
 // Wrapper for sfxr sounds implementing dynamic volume via reconstruction
 class Sound {
