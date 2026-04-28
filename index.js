@@ -943,13 +943,9 @@ function LoadSettings() {
         if (!el)
             continue;
         let tValue = jsonValue.value;
-        switch (jsonValue.type) {
-            case "number":
-                tValue = parseFloat(tValue);
-                break;
-            default:
-                break;
-        }
+        console.log(typeof tValue);
+        if (jsonValue.type === "number")
+            tValue = parseFloat(tValue);
         setAttr(Game, k, tValue);
         const label = document.getElementById(jsonValue.el + "-label");
         if (label)

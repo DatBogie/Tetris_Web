@@ -931,7 +931,7 @@ class Signal {
 }
 
 const settingsWin:HTMLElement|null = document.getElementById("settings"); // Settings window; the parent/most common ancestor of all settings elements
-const Settings = { // All settings input elements
+const Settings = { // All settings keys/attribute names of `Game` mapped to their input element
     AutoPause: settingsWin?.querySelector("#settings-auto-pause"),
     ResetSettings: settingsWin?.querySelector("#settings-advanced-reset-settings"),
     ResetHighScore: settingsWin?.querySelector("#settings-advanced-reset-highscore"),
@@ -960,55 +960,55 @@ const Settings = { // All settings input elements
     DropEaseStyle: settingsWin?.querySelector("#settings-ease-style-drop"),
     DropEaseDirection: settingsWin?.querySelector("#settings-ease-dir-drop")
 } as Record<string, HTMLElement|HTMLInputElement>
-const SettingsBuffer:Map<string,Enum.bufferData> = new Map<string,any>();
+const SettingsBuffer:Map<string,Enum.bufferData> = new Map<string,Enum.bufferData>(); // Stores potential setting changes before pushing them (allowing for discarding changes)
 const settingsTitle:HTMLDivElement = document.getElementById("settings-title") as HTMLDivElement;
+// Load (or reset) settings (and other data) from localStorage and display their saved values
 function LoadSettings() : void {
+    // Reset highscore if we find the ResetHighScore setting was checked
     if (localStorage.getItem("SETTINGS/ResetHighScore")) {
-        localStorage.removeItem("SETTINGS/ResetHighScore")
-        localStorage.removeItem("HighScore");
+        localStorage.removeItem("SETTINGS/ResetHighScore"); // Remove the ResetHighScore setting from localStorage to ensure it doesn't get unintentionally reset next time
+        localStorage.removeItem("HighScore"); // Reset highscore by removing it from localStorage before it's read in two lines
     }
     Game.loadHighScore();
+    // Reset all settings if we find the ResetSettings setting was checked
     if (localStorage.getItem("SETTINGS/ResetSettings")) {
+        // Store all saved settings keys to ensure the for loop doesn't produce errors from newly missing indicies
         const keys:string[] = [];
         for (let i=0; i<localStorage.length; i++) {
             let k:string|null = localStorage.key(i);
-            if (!k || !k.startsWith("SETTINGS/")) continue;
+            if (!k || !k.startsWith("SETTINGS/")) continue; // All settings are prefixed by "SETTINGS/"; don't reset the highscore for example here
             keys.push(k);
         }
         for (const k of keys)
             localStorage.removeItem(k);
     }
+    // Load all settings
     for (let i=0; i<localStorage.length; i++) {
         let k:string|null = localStorage.key(i);
-        if (!k || !k.startsWith("SETTINGS/")) continue;
-        const strValue:string|null = localStorage.getItem(k);
+        if (!k || !k.startsWith("SETTINGS/")) continue; // Only load settings
+        const strValue:string|null = localStorage.getItem(k); // Stringified JSON of data
         if (!strValue) continue;
-        k = k.slice("SETTINGS/".length);
-        const jsonValue:{value:string,type:string,el:string} = JSON.parse(strValue);
-        const el:HTMLElement|null = document.getElementById(jsonValue.el);
+        k = k.slice("SETTINGS/".length); // Remove the "SETTINGS/" prefix from the key (since Game's attributes aren't prefixed)
+        const jsonValue:{value:any,el:string} = JSON.parse(strValue); // Parsed object from the saved stringified JSON containing the saved value and the input element's id
+        const el:HTMLElement|null = document.getElementById(jsonValue.el); // Get input element
         if (!el) continue;
-        let tValue:any = jsonValue.value;
-        switch (jsonValue.type) {
-            case "number":
-                tValue = parseFloat(tValue);
-                break;
-            default:
-                break;
-        }
-        setAttr(Game,k,tValue);
+        setAttr(Game,k,jsonValue.value); // Update the setting's value in Game
+        // Display setting's value formatted based on `el`'s attributes
+        // Some settings (volume slider) have an additional label to provide more precise feedback
         const label:HTMLElement|null = document.getElementById(jsonValue.el+"-label");
-        if (label) label.textContent = tValue.toString();
+        if (label) label.textContent = jsonValue.value.toString();
+        // If <input>, then set `value(AsNumber)`/`checked` property, else set `textContent`
         if (el instanceof HTMLInputElement) {
             switch (el.type) {
                 case "range":
                 case "number":
                     if (el.classList.contains("percent"))
-                        el.valueAsNumber = tValue*parseFloat(el.max);
+                        el.valueAsNumber = jsonValue.value*parseFloat(el.max);
                     else
-                        el.valueAsNumber = tValue;
+                        el.valueAsNumber = jsonValue.value;
                     break;
                 case "checkbox":
-                    el.checked = tValue
+                    el.checked = jsonValue.value
                     break;
                 default:
                     el.value = jsonValue.value;
@@ -1019,24 +1019,30 @@ function LoadSettings() : void {
         }
     }
 }
+// Add newly changed settings to the buffer
 function UpdateSettingsBuffer(k:string, data:Enum.bufferData) : void {
+    // Update the setting's label if its present
     const label:HTMLElement|null = document.getElementById(data.el.id+"-label");
     if (label) label.textContent = data.value;
+    // Don't add to the buffer if we've set the setting back to its current value
     if (getAttr(Game,k) === data.value) {
         SettingsBuffer.delete(k);
         if (SettingsBuffer.size === 0)
-            settingsTitle.textContent = "Settings";
+            settingsTitle.textContent = "Settings"; // Show visually that the buffer is empty
         return
     }
     SettingsBuffer.set(k,data);
-    settingsTitle.textContent = "Settings*";
+    settingsTitle.textContent = "Settings*"; // Show visually that the buffer isn't empty
 }
-const DestructiveFuncs:Function[] = [Game.ReloadPage];
+const DestructiveFuncs:Function[] = [Game.ReloadPage]; // Define function(s) that make other code not able to be run; these need to be run last
+// Commit the buffer to Game
 function WriteSettingsBuffer() : void {
+    // Get functions that should run when updating each setting (do everything otuside of the loops to avoid repeated runs and to ensure destructive functions can be run last)
     const funcs:Function[] = [];
     for (const [k,v] of SettingsBuffer.entries()) {
-        setAttr(Game,k,v.value);
-        localStorage.setItem(`SETTINGS/${k}`,JSON.stringify({value:v.value,type:typeof v.value,el:v.el.id}));
+        setAttr(Game,k,v.value); // Commit setting
+        localStorage.setItem(`SETTINGS/${k}`,JSON.stringify({value:v.value,el:v.el.id})); // Save the setting's new value and its id
+        // Store functions to `funcs` should they exist and have not already been added
         if (v.funcs && v.funcs.length !== 0) {
             for (const f of v.funcs) {
                 let x:Function|undefined = getAttr(Game,f);
@@ -1045,51 +1051,52 @@ function WriteSettingsBuffer() : void {
             }
         }
     }
-    SettingsBuffer.clear();
-    settingsTitle.textContent = "Settings";
-    const destructiveFuncs:Function[] = [];
+    SettingsBuffer.clear(); // Clear buffer
+    settingsTitle.textContent = "Settings"; // Show visually that the buffer is empty
+    const destructiveFuncs:Function[] = []; // Destructive funcs found in this buffer
     for (const f of funcs) {
+        // Check if this function is defined in `DestructiveFuncs`, adding it to `destructiveFuncs` if true
         const dI:number = DestructiveFuncs.indexOf(f);
         if (dI !== -1) {
             destructiveFuncs[dI] = f;
             continue;
         }
-        f();
+        f(); // Run the non-destructive function
     }
-    for (const f of destructiveFuncs) f();
+    for (const f of destructiveFuncs) f(); // Run each destructive function
 }
-const RejectSettingsBuffer:Signal = new Signal();
+const RejectSettingsBuffer:Signal = new Signal(); // Signal for the discard button to reset settings' labels
 RejectSettingsBuffer.Connect(()=>{
     settingsTitle.textContent = "Settings";
 });
+// Handle all settings elements
 function handleSettings() : void {
     for (const [k, el] of Object.entries(Settings)) {
-        const li:HTMLElement = el.parentElement as HTMLElement;
-        li.title = `${li.title !== ""? `${li.title}\n` : ""}Default: ${getAttr(Game,k)}`;
+        const li:HTMLElement = el.parentElement as HTMLElement; // Find the element's parent <li>
+        li.title = `${li.title !== ""? `${li.title}\n` : ""}Default: ${getAttr(Game,k)}`; // Append the default value to the tooltip
         const label:HTMLElement|null = document.getElementById(el.id+"-label");
         if (label) label.textContent = getAttr(Game,k);
         if (el instanceof HTMLInputElement) {
             if (el.type === "number" || el.type === "range") {
-                const [min, max]:number[] = [parseFloat(el.min ?? "0"),parseFloat(el.max ?? "100")];
-                const defaultVal:number = getAttr(Game,k);
-                if (el.classList.contains("percent"))
-                    el.valueAsNumber = getAttr(Game,k)*max;
-                else
-                    el.valueAsNumber = getAttr(Game,k);
-                const funcs:string[] = (el.dataset.funcs ?? "").split(",");
+                const [min, max]:number[] = [parseFloat(el.min ?? "0"),parseFloat(el.max ?? "100")]; // Find the setting's range [`min`,`max`]
+                const defaultVal:number = getAttr(Game,k); // Get the default value
+                el.valueAsNumber = getAttr(Game,k)*(el.classList.contains("percent")? max : 1) // Conver to percent/`max` if it's a percent-type setting
+                const funcs:string[] = (el.dataset.funcs ?? "").split(","); // Get Array of passed method names
+                // Update buffer when value changed
                 el.addEventListener("change",()=>{
-                    if (isNaN(el.valueAsNumber)) {
-                        el.valueAsNumber = SettingsBuffer.get(k)?.value ?? (getAttr(Game,k) ?? defaultVal)*(el.classList.contains("percent")? max : 1);
+                    if (isNaN(el.valueAsNumber)) { // User tries to set it to an invalid/blank value
+                        el.valueAsNumber = SettingsBuffer.get(k)?.value ?? (getAttr(Game,k) ?? defaultVal)*(el.classList.contains("percent")? max : 1); // Set to either: current buffer value, current value, or default value depending on which isn't `undefined|null` (and convert to percent/`max` if applicable)
                         return;
                     }
-                    const val:any = (el.classList.contains("int")? Math.trunc : Utils.dummy)(Utils.clamp(el.valueAsNumber,min,max));
-                    UpdateSettingsBuffer(k,{ value:(el.classList.contains("percent")? val/max : val), funcs:funcs, el:el });
-                    el.valueAsNumber = val;
+                    const val:any = (el.classList.contains("int")? Math.trunc : Utils.dummy)(Utils.clamp(el.valueAsNumber,min,max)); // Convert to int if applicable, and clamp value to [`min`,`max`]
+                    UpdateSettingsBuffer(k,{ value:(el.classList.contains("percent")? val/max : val), funcs:funcs, el:el }); // Update buffer, passing the value as a normal value (not percent/`max`), the funcs Array, and the element
+                    el.valueAsNumber = val; // Update setting's text
                 })
+                // Reset to either current value or default value (formatted as a percent/`max` if needed) when discarding
                 RejectSettingsBuffer.Connect(()=>{
                     el.valueAsNumber = (getAttr(Game,k) ?? defaultVal)*(el.classList.contains("percent")? max : 1);
                 });
-            } else if (el.type === "checkbox") {
+            } else if (el.type === "checkbox") { // Same as number/range, just simpler since it's just a boolean value
                 el.checked = getAttr(Game,k);
                 const defaultVal:boolean = el.checked;
                 const funcs:string[] = (el.dataset.funcs ?? "").split(",");
@@ -1099,7 +1106,7 @@ function handleSettings() : void {
                 RejectSettingsBuffer.Connect(()=>{
                     el.checked = getAttr(Game,k) ?? defaultVal;
                 });
-            } else {
+            } else { // Same as above, just for a generic string
                 el.value = getAttr(Game,k);
                 const defaultVal:string = el.value;
                 const funcs:string[] = (el.dataset.funcs ?? "").split(",");
@@ -1110,23 +1117,22 @@ function handleSettings() : void {
                     el.value = getAttr(Game,k) ?? defaultVal;
                 });
             }
-        } else if (el instanceof HTMLSelectElement) {
-            if (el.classList.contains("ease")) {
-                el.value = getAttr(Game,k);
-                const defaultVal:string = el.value;
-                const funcs:string[] = (el.dataset.funcs ?? "").split(",");
-                el.addEventListener("change",()=>{
-                    UpdateSettingsBuffer(k,{ value:el.value, el:el, funcs:funcs });
-                });
-                RejectSettingsBuffer.Connect(()=>{
-                    el.value = getAttr(Game,k) ?? defaultVal;
-                });
-            }
+        } else if (el instanceof HTMLSelectElement) { // Same, but for combo boxes
+            el.value = getAttr(Game,k);
+            const defaultVal:string = el.value;
+            const funcs:string[] = (el.dataset.funcs ?? "").split(",");
+            el.addEventListener("change",()=>{
+                UpdateSettingsBuffer(k,{ value:el.value, el:el, funcs:funcs });
+            });
+            RejectSettingsBuffer.Connect(()=>{
+                el.value = getAttr(Game,k) ?? defaultVal;
+            });
         }
     }
 }
 handleSettings();
 
+// Contains the color of a block (useful for drawing stale/stamped pixels correctly)
 class BlockData {
     constructor(color:Color|string=Color.fromHex("#FFFFFFFF")) {
         if (typeof color === "string") color = Color.fromHex(color+"FF");
@@ -1135,6 +1141,7 @@ class BlockData {
     Color:Color;
 }
 
+// Easily check if a number is between two other constant numbers (eg. define a range once, easily check it with different numbers)
 class NumberRange {
     constructor(min:number, max:number) {
         this.Min = Math.min(min,max);
@@ -1148,9 +1155,10 @@ class NumberRange {
     static readonly infinite = new NumberRange(-Infinity,Infinity);
 }
 
-const Levels:InfiniteLevelArray = new InfiniteLevelArray([]);
-
+const Levels:InfiniteLevelArray = new InfiniteLevelArray([]); // Push levels later since `Level` references `Levels`, and defining the levels in here would reference `Level`, meaning it would always error
+// Class representing a level, with a name (so duplicate levels can still be correctly detected in `Levels`), and the ability to modify the speed, total line clear gate, and score multiplier
 class Level {
+    // Default clearGate function simply makes the gate 10 line clears each level (it's not relative so this simple math function is needed)
     constructor(name:string, speed:number, clearGate:()=>number=()=>10*(this.LevelNumber-1), speedMode:Enum.ModeOperationFunction=Enum.ModeOperation.Multiply, speedRange:NumberRange=NumberRange.infinite, scoreMultiplier?:(index:number)=>number) {
         this.Name = name;
         this.speed = speed;
@@ -1159,17 +1167,16 @@ class Level {
         this.SpeedRange = speedRange;
         if (scoreMultiplier) this.scoreMultiplier = scoreMultiplier;
     }
+    // Clone a level with a specified index. Needed since an element's index cannot be naturally found via indexOf() in an InfiniteArray after reaching past it's real length
     Clone(index:number) : Level {
         const lvl:Level = new Level(this.Name,this.Speed,this.clearGate,this.SpeedMode,this.SpeedRange,this.scoreMultiplier);
         lvl.levelIndex = index;
         return lvl;
     }
     private levelIndex:number|undefined;
+    // Index+1 (for human readability)
     get LevelNumber() : number {
         return (this.levelIndex ?? Levels.indexOf(this))+1;
-    }
-    set LevelNumber(i:number) {
-        this.levelIndex = i-1;
     }
     readonly Name:string;
     private readonly speed:number;
