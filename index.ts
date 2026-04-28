@@ -1174,7 +1174,7 @@ class Level {
         return lvl;
     }
     private levelIndex:number|undefined;
-    // Index+1 (for human readability)
+    // Index+1 (for human readability/math purposes)
     get LevelNumber() : number {
         return (this.levelIndex ?? Levels.indexOf(this))+1;
     }
