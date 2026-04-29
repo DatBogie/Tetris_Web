@@ -1197,11 +1197,13 @@ class Level {
     }
 }
 
+// Infinite levels, since level 2 exponentially increases speed based on current LevelNumber
 Levels.push(
     new Level("1",1.0,()=>10,Enum.ModeOperation.Set),
     new Level("2..",1.15,undefined,(x:number,y:number)=>((y+2)^Game.LevelNumber)/100)
 );
 
+// Represents a block and its shapes/color
 class Block {
     constructor(blockShapes:number[][][], blockData:BlockData, symbol:string) {
         if (blockShapes.length < 4)
@@ -1219,6 +1221,7 @@ class Block {
     }
 }
 
+// Represents an in-play block
 class BlockInstance extends Block {
     constructor(block:Block) {
         super(block.Shapes, block.Data, block.Symbol);
@@ -1246,24 +1249,26 @@ class BlockInstance extends Block {
         return this.Shapes[this.Rotation];
     }
     Rotation:number = 0;
+    // Check if block is/would be in an invalid position (outside game bounds or inside stamped pixels) at either the current or a passed position/shape
     IsValidPosition(x:number=this.targetPos?.X ?? 0, y:number=this.targetPos?.Y ?? 0, shape:number[][]=this.CurrentShape) : boolean {
         for (const [oY, row] of shape.entries()) {
             for (const [oX, col] of row.entries()) {
-                if (col === 0) continue;
-                if (Game.Data[y+oY] === undefined || Game.Data[0][x+oX] === undefined) return false;
-                if (Game.Data[y+oY][x+oX] !== 0)
-                    return false;
+                if (col === 0) continue; // Only check where the block actually has pixels
+                if (Game.Data[y+oY] === undefined || Game.Data[0][x+oX] === undefined || Game.Data[y+oY][x+oX] !== 0) return false;
             }
         }
         return true;
     }
     private tween:Tween = new Tween([]);
-    private targetPos:Point|undefined;
+    private targetPos:Point|undefined; // The integer point the block is actually at for collision purposes (mirror of _x,_y when animations are disabled)
     get TargetPos() : Point|undefined {
         return this.targetPos;
     }
     private dropping:boolean = false;
-    private isFake:boolean = false;
+    private isFake:boolean = false; // Tell if a block is a clone
+    get IsClone() : boolean {
+        return this.isFake;
+    }
     Clone() : BlockInstance {
         const clone:BlockInstance = new BlockInstance(this.toBlock());
         clone.isFake = true;
@@ -1279,21 +1284,22 @@ class BlockInstance extends Block {
     get IsDropping() : boolean {
         return this.dropping;
     }
+    // Move a block by (x,y) pixels
     async Move(x:number=0, y:number=0, isInstantDrop:boolean=false, isTickedDrop:boolean=false) : Promise<boolean|undefined> {
         if (this.dropping) return undefined;
-        x+=this.targetPos?.X ?? 0; y+=this.targetPos?.Y ?? 0;
-        if (!this.IsValidPosition(x,y)) return !this.dropping? false : undefined;
+        x+=this.targetPos?.X ?? 0; y+=this.targetPos?.Y ?? 0; // Convert from relative to absolute coordinates
+        if (!this.IsValidPosition(x,y)) return !this.dropping? false : undefined; // Stop if desired position is invalid
         if (isInstantDrop)
-            this.dropping = true;
+            this.dropping = true; // Start hard drop
         else
-            SFX.blockMove.play();
-        this.targetPos = new Point(x,y);
+            SFX.blockMove.play(); // Play move sound when not hard drop
+        this.targetPos = new Point(x,y); // Update int target pos
         if (Game.Anims) {
-            const tData = {s:new Point(this._x,this._y),e:this.targetPos};
-            const { promise: comp, resolve } = Promise.withResolvers();
-            if (this.tween && this.tween.isPlaying())
+            const tData = {s:new Point(this._x,this._y),e:this.targetPos}; // Tween data (start pos -> end pos)
+            const { promise: comp, resolve } = Promise.withResolvers(); // Only return this function once tweens are finished when hard dropping (otherwise game speed is tied to animation speed)
+            if (this.tween && this.tween.isPlaying()) // Stop stale tween
                 this.tween.stop();
-            this.tween = new Tween(tData.s)
+            this.tween = new Tween(tData.s) // Create/setup new team
             .to(tData.e,!isInstantDrop? Game.AnimMoveTime : Game.AnimDropTime)
             .easing(!isInstantDrop? Game.MoveEase : Game.DropEase)
             .dynamic(true)
@@ -1307,21 +1313,22 @@ class BlockInstance extends Block {
                 isComplete = true;
                 if (isInstantDrop) {
                     this.dropping = false;
-                    resolve(undefined);
+                    resolve(undefined); // Resolve once tweens are complete with hard drop
                 }
             };
             this.tween.onComplete(fin);
             this.tween.onStop(fin);
             this.tween.start();
-            const updateFunc = ()=>{
+            const updateFunc = ()=>{ // Update block's position based on tween
                 const t:number = performance.now();
                 this.tween.update(t);
                 if (!isComplete)
                     requestAnimationFrame(updateFunc);
             };
             requestAnimationFrame(updateFunc);
-            if (isInstantDrop) await comp;
+            if (isInstantDrop) await comp; // Only wait for tween completion when hard dropping
         } else {
+            // Instantly update without expending resources to create a tween
             [this._x, this._y] = [this.targetPos.X, this.targetPos.Y];
             this.Draw();
             if (isInstantDrop)
@@ -1329,6 +1336,7 @@ class BlockInstance extends Block {
         }
         return !this.dropping? true : false;
     }
+    // Rotate block (cycle through block shapes)
     Rotate(reverse:boolean=false) : boolean {
         const success = ()=>{
             this.Draw();
@@ -1336,7 +1344,8 @@ class BlockInstance extends Block {
             return true;
         };
         let dir:number = (reverse) ? -1 : 1;
-        const newRot:number = Utils.OverflowOperate(this.Rotation,dir,0,3);
+        const newRot:number = Utils.OverflowOperate(this.Rotation,dir,0,3); // Wrap around from 4 -> 0 and -1 -> 3
+        // If new position with new shape is invalid, try finding a valid position in all four directions
         if (!this.IsValidPosition(undefined,undefined,this.Shapes[newRot])) {
             for (let i=1; i<=this.Shapes[newRot][0].length; i++) {
                 if (this.IsValidPosition((this.targetPos?.X ?? 0)-i,undefined,this.Shapes[newRot])) {
@@ -1368,24 +1377,25 @@ class BlockInstance extends Block {
                     return success();
                 }
             }
-            SFX.negative.play();
+            SFX.negative.play(); // No attempts were successful; play fail sound and return false
             return false;
         }
         this.Rotation = newRot;
         return success();
     }
+    // Allows clones to draw themselves without drawing other things that the current block needs to draw
     static Draw(block:BlockInstance,canvas?:Canvas2D,x?:number,y?:number,drawColor?:boolean,outline?:boolean,width?:number,height?:number) : void {
-        if (!block.isFake) return;
         block._draw(canvas,x,y,drawColor,outline,width,height);
     }
+    // Actually draw pixels to the canvas, translating game logic pixels to real pixels
     private _draw(canvas:Canvas2D=Game.BlockCanvas, x:number=this._x, y:number=this._y,drawColor:boolean=false,outline:boolean=false,width:number=1,height:number=1) : void {
         if (drawColor) canvas.Context.fillStyle = this.Data.Color.RGBA;
         for (const [oY, row] of this.CurrentShape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0) continue;
-                let [_x,_y,_w,_h]:number[] = [Game.CanvasOffset(canvas).X+x*Game.PixelSize+oX*Game.PixelSize,Game.CanvasOffset(canvas).Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize*width*Game.BlockScale,Game.PixelSize*height*Game.BlockScale];
-                _x-=(_w-_w/Game.BlockScale)/2;
-                _y-=(_h-_h/Game.BlockScale)/2;
+                // Center anchor pixel
+                let [_x,_y,_w,_h]:number[] = [Game.CanvasOffset(canvas).X+x*Game.PixelSize+oX*Game.PixelSize,Game.CanvasOffset(canvas).Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize*width*Game.BlockScale,Game.PixelSize*height*Game.BlockScale]; // Convert game logic pixels to real pixels, filling 1 game pixel per width/height
+                _x-=(_w-_w/Game.BlockScale)/2; _y-=(_h-_h/Game.BlockScale)/2;
                 if (!outline)
                     canvas.Context.fillRect(_x,_y,_w,_h);
                 else
@@ -1393,8 +1403,9 @@ class BlockInstance extends Block {
             }
         }
     }
+    // Draw block, ghost block, and AccuBlock
     Draw(canvas:Canvas2D=Game.BlockCanvas) : void {
-        if (!this.IsValidPosition()) return;
+        if (!this.IsValidPosition() || this.isFake) return;
         if (canvas === Game.BlockCanvas) canvas.ClearCanvas();
         canvas.Context.fillStyle = this.Data.Color.RGBA;
         this._draw(canvas);
@@ -1410,6 +1421,7 @@ class BlockInstance extends Block {
         }
     }
     private stamping:boolean = false;
+    // Write block to game state
     async Stamp() : Promise<void> {
         if (this.dropping || this.stamping) return;
         this.stamping = true;
@@ -1419,6 +1431,7 @@ class BlockInstance extends Block {
         await Game.BlockStamped(this);
         this.stamping = false;
     }
+    // Hard drop (move to lowest valid position)
     async InstantDrop() : Promise<void> {
         Game.LockMovement = true;
         const y:number = this.LowestValidY-(this.targetPos?.Y ?? 0);
@@ -1459,11 +1472,13 @@ class BlockInstance extends Block {
         }
         return lowestPoint;
     }
+    // Convert from `BlockInstance` to `Block`
     toBlock() : Block {
         return new Block(this.Shapes,this.Data,this.Symbol);
     }
 }
 
+// Define blocks by constructing a Block with all block rotations, and its color
 const Blocks:Record<string,Block> = {
     "I": new Block(
         [
@@ -1642,6 +1657,7 @@ const Blocks:Record<string,Block> = {
     )
 }
 
+// Get a slider input's step (how much it changes/what intervals it snaps to) based on modifier keys
 function getRangeStep(range:HTMLInputElement) : number {
     const int:boolean = range.classList.contains("int");
     let step:number = ((int? parseInt : parseFloat)(range.step)) || 1;
@@ -1653,18 +1669,19 @@ function getRangeStep(range:HTMLInputElement) : number {
         step = (Math.abs(parseFloat(range.max))+Math.abs(parseFloat(range.min)))/2;
     return (int? Math.round : Utils.dummy)(step);
 }
+// Manually step slider left or right (dir=-1|1)
 function stepRange(range:HTMLInputElement,dir:number=1) : number {
     const int:boolean = range.classList.contains("int");
     return Utils.clamp((int? parseInt : parseFloat)(range.value)+(getRangeStep(range)*dir),(int? parseInt : parseFloat)(range.min),(int? parseInt : parseFloat)(range.max));
 }
 
-const heldKeys:Record<string,boolean> = {};
-const keyThreads:Record<string,number|undefined> = {};
+const heldKeys:Record<string,boolean> = {}; // Currently pressed keys
+const keyThreads:Record<string,number|undefined> = {}; // Key delay setTimeout ids
 
+// Pause game when tab/wimdow focus lost
 var pausedFromFocusLoss:boolean;
-
 window.addEventListener("focus",()=>{
-    if (pausedFromFocusLoss && Game.Paused && Game.AutoPause) Game.TogglePause(false);
+    if (pausedFromFocusLoss && Game.Paused && Game.AutoPause) Game.TogglePause(false); // Only pause if setting enabled and if the last pause was automatic
     pausedFromFocusLoss = false;
 });
 window.addEventListener("blur",()=>{
@@ -1677,16 +1694,16 @@ window.addEventListener("blur",()=>{
 });
 
 async function handleKeypress(event:KeyboardEvent) : Promise<void> {
-    if (clickWar) return event.preventDefault();
+    if (clickWar) return event.preventDefault(); // Don't register presses if the click warning is still on-screen
     let eventKey:string = event.key;
-    if (eventKey === "Tab" && heldKeys.Shift)
+    if (eventKey === "Tab" && heldKeys.Shift) // Circumvent intentional switch statement limitations
         eventKey = "ShiftTab";
     if (event.defaultPrevented || !SFX) return;
     if (!Game.Running || Game.Paused) {
-        if (document.activeElement?.classList.contains("keybind") && document.activeElement.textContent === "...")
+        if (document.activeElement?.classList.contains("keybind") && document.activeElement.textContent === "...") // Don't hinder keybind button functionality
             return event.preventDefault();
         switch(eventKey) {
-            case "ArrowLeft":
+            case "ArrowLeft": // Don't interfere with settings input controls (or add further functionality to them)
                 if (PauseBtns[PauseMenuSel] instanceof HTMLInputElement) {
                     if ((PauseBtns[PauseMenuSel] as HTMLInputElement).type !== "range") {
                         return;
@@ -1721,7 +1738,7 @@ async function handleKeypress(event:KeyboardEvent) : Promise<void> {
             case "z":
             case "c":
             case " ":
-            case "Enter":
+            case "Enter": // Click selected element
                 if (!(document.activeElement instanceof HTMLSelectElement)) {
                     if (document.activeElement?.classList.contains("keybind")) await sleep(2);
                     (document.activeElement as HTMLElement|undefined)?.click();
@@ -1742,7 +1759,7 @@ async function handleKeypress(event:KeyboardEvent) : Promise<void> {
             default: return;
         }
     }
-    if (Game.Paused && event.key !== "Escape" || Game.LockMovement) return;
+    if ((Game.Paused && event.key !== "Escape" ) || Game.LockMovement) return; // Don't try to move if in menus or not able to move block
     switch (event.key) {
         case Game.KeyBinds.Left:
             Game.CurrentBlock?.Move(-1, 0);
@@ -1771,11 +1788,12 @@ async function handleKeypress(event:KeyboardEvent) : Promise<void> {
         case "Escape":
             Game.TogglePause();
             break;
-        default: return console.log(event.key);
+        default: return;
     }
     event.preventDefault();
 }
 
+// Update held keys
 window.addEventListener("keyup",event=>{
     heldKeys[event.key] = false;
     if (keyThreads[event.key]) {
@@ -1788,7 +1806,7 @@ window.addEventListener("keydown", async event=>{
     if (!paused && heldKeys[event.key]) return;
     heldKeys[event.key] = true;
     handleKeypress(event);
-    const isMoveKey:boolean = event.key === Game.KeyBinds.Left || event.key === Game.KeyBinds.Right || event.key === Game.KeyBinds.Soft;
+    const isMoveKey:boolean = event.key === Game.KeyBinds.Left || event.key === Game.KeyBinds.Right || event.key === Game.KeyBinds.Soft; // Whether to use move key delay/repeat interval settings
     if (!paused) {
         keyThreads[event.key] = setTimeout(()=>{
             if (!heldKeys[event.key]) return;
@@ -1801,6 +1819,7 @@ window.addEventListener("keydown", async event=>{
     }
 }, true);
 
+// Resume/start game when button clicked
 document.getElementById("pause-resume")?.addEventListener("click",()=>{
     if (!Game.Running) {
         Game.StartGame();
@@ -1809,21 +1828,13 @@ document.getElementById("pause-resume")?.addEventListener("click",()=>{
     Game.TogglePause(false);
 });
 
+// Restart game when button clicked
 document.getElementById("pause-restart")?.addEventListener("click",()=>{
     Game.Reset();
     Game.StartGame();
 });
 
-document.getElementById("pause-mods")?.addEventListener("click",()=>{
-    if (document.querySelector(".modal.active")) return;
-    document.getElementById("mods")?.classList.add("active");
-    updateSelectionButtons();
-});
-document.getElementById("mods-back")?.addEventListener("click",()=>{
-    document.getElementById("mods")?.classList.remove("active");
-    updateSelectionButtons();
-});
-
+// Show/hide help page
 document.getElementById("pause-help")?.addEventListener("click",()=>{
     if (document.querySelector(".modal.active")) return;
     document.getElementById("help")?.classList.add("active");
@@ -1834,6 +1845,7 @@ document.getElementById("help-back")?.addEventListener("click",()=>{
     updateSelectionButtons();
 });
 
+// Show/hide about page
 document.getElementById("pause-about")?.addEventListener("click",()=>{
     if (document.querySelector(".modal.active")) return;
     document.getElementById("about")?.classList.add("active");
@@ -1844,23 +1856,27 @@ document.getElementById("about-back")?.addEventListener("click",()=>{
     updateSelectionButtons();
 });
 
+// Show/hide settings page
 document.getElementById("pause-settings")?.addEventListener("click",()=>{
     if (document.querySelector(".modal.active")) return;
     SettingsBuffer.clear();
     document.getElementById("settings")?.classList.add("active");
     updateSelectionButtons();
 });
+// Save settings
 document.getElementById("settings-back")?.addEventListener("click",()=>{
     document.getElementById("settings")?.classList.remove("active");
     updateSelectionButtons();
     WriteSettingsBuffer();
 });
+// Discard settings
 document.getElementById("settings-quit")?.addEventListener("click",()=>{
     document.getElementById("settings")?.classList.remove("active");
     updateSelectionButtons();
     RejectSettingsBuffer.Fire();
 });
 
+// Hook into collapsable menus to smoothly animate expanding/collapsing
 const detailsArr:HTMLStyleElement[] = [];
 document.querySelectorAll("details").forEach(el=>{
     const style:HTMLStyleElement = document.createElement("style");
@@ -1882,7 +1898,8 @@ document.querySelectorAll("details").forEach(el=>{
     });
 });
 
-const isMac:boolean = navigator.platform === "MacIntel";
+const isMac:boolean = navigator.platform === "MacIntel"; // Whether user is on mac
+// Define map between text representations of keys and the custom Kenney Input Keyboard Icons font's icon characters
 const keyTranslationMap:Record<string,string> = {
     "0": "",
     "1": "",
@@ -1977,10 +1994,12 @@ const keyTranslationMap:Record<string,string> = {
     mac_Option: ""
 }
 for (const [key,symbol] of Object.entries(keyTranslationMap)) {
+    // Add uppercase letters (shift+letter)
     if (key.length === 1 && key.toUpperCase() !== key) {
         keyTranslationMap[key.toUpperCase()] = `${keyTranslationMap.Shift}﹢${symbol}`
         continue;
     }
+    // Replace generic keys with mac keys if on mac
     if (isMac && (key === "Meta" || key === "Alt")) {
         if (key === "Meta")
             keyTranslationMap[key] = keyTranslationMap.mac_Command;
@@ -1989,14 +2008,17 @@ for (const [key,symbol] of Object.entries(keyTranslationMap)) {
         continue;
     }
 }
+// Translate key text via keyTranslationMap
 function translateKey(k:string) : string {
     if (keyTranslationMap[k]) return keyTranslationMap[k];
     return k;
 }
+// Keybind button expands when showing an icon; this function resets it when it only has normal text
 function resetKeybindStyle(el:HTMLButtonElement) : void {
     if (Object.values(keyTranslationMap).indexOf(el.textContent) !== -1)
         el.classList.remove("active");
 }
+// Hook into all keybind buttons to detect keys and update keybinds when set
 (document.querySelectorAll("button.keybind") as NodeListOf<HTMLButtonElement>).forEach(el=>{
     Game.KeyBinds[el.dataset.bind ?? ""] = el.dataset.key ?? "";
     let ignoreInput:boolean = false;
@@ -2027,6 +2049,7 @@ function resetKeybindStyle(el:HTMLButtonElement) : void {
     });
 });
 
+// Prevent default key events from running under certain conditions (avoid interferences with keybind buttons, inputs, etc.)
 function preventKeyEvents(el:HTMLInputElement|HTMLElement) : void {
     el.addEventListener("keydown",event=>{
         if (!el.classList.contains("keybind") || el.textContent !== "...") {
@@ -2045,6 +2068,7 @@ function preventKeyEvents(el:HTMLInputElement|HTMLElement) : void {
             }
         }
     });
+    // Highlight content of <input>s when focused in order to make quickly editing values easier
     if (el instanceof HTMLInputElement) {
         el.addEventListener("focus",()=>{
             el.select();
@@ -2056,6 +2080,7 @@ function preventKeyEvents(el:HTMLInputElement|HTMLElement) : void {
     preventKeyEvents(el);
 });
 
+// Make all links open in a new tab
 document.addEventListener("click",event=>{
     const trg:HTMLLinkElement = event.target as HTMLLinkElement;
     if (trg.tagName === "A") {
@@ -2068,6 +2093,7 @@ LoadSettings();
 Game.DrawGrid();
 Game.Reset();
 
+// Generate markdown HTML from markdown file
 async function genReadme(id:string,path:string) : Promise<void> {
     let readme:Response|string = await fetch(path);
     readme = await readme.text();
@@ -2085,4 +2111,4 @@ for (const [id,path] of Object.entries(readmePages)) {
     genReadme(id,path);
 }
 
-(document.getElementById("pause-text") as HTMLElement).innerHTML = "<b>Bogetris</b>";
+(document.getElementById("pause-text") as HTMLElement).innerHTML = "<b>Bogetris</b>"; // Set title text

@@ -942,25 +942,21 @@ function LoadSettings() {
         const el = document.getElementById(jsonValue.el);
         if (!el)
             continue;
-        let tValue = jsonValue.value;
-        console.log(typeof tValue);
-        if (jsonValue.type === "number")
-            tValue = parseFloat(tValue);
-        setAttr(Game, k, tValue);
+        setAttr(Game, k, jsonValue.value);
         const label = document.getElementById(jsonValue.el + "-label");
         if (label)
-            label.textContent = tValue.toString();
+            label.textContent = jsonValue.value.toString();
         if (el instanceof HTMLInputElement) {
             switch (el.type) {
                 case "range":
                 case "number":
                     if (el.classList.contains("percent"))
-                        el.valueAsNumber = tValue * parseFloat(el.max);
+                        el.valueAsNumber = jsonValue.value * parseFloat(el.max);
                     else
-                        el.valueAsNumber = tValue;
+                        el.valueAsNumber = jsonValue.value;
                     break;
                 case "checkbox":
-                    el.checked = tValue;
+                    el.checked = jsonValue.value;
                     break;
                 default:
                     el.value = jsonValue.value;
@@ -990,7 +986,7 @@ function WriteSettingsBuffer() {
     const funcs = [];
     for (const [k, v] of SettingsBuffer.entries()) {
         setAttr(Game, k, v.value);
-        localStorage.setItem(`SETTINGS/${k}`, JSON.stringify({ value: v.value, type: typeof v.value, el: v.el.id }));
+        localStorage.setItem(`SETTINGS/${k}`, JSON.stringify({ value: v.value, el: v.el.id }));
         if (v.funcs && v.funcs.length !== 0) {
             for (const f of v.funcs) {
                 let x = getAttr(Game, f);
@@ -1029,10 +1025,7 @@ function handleSettings() {
             if (el.type === "number" || el.type === "range") {
                 const [min, max] = [parseFloat(el.min ?? "0"), parseFloat(el.max ?? "100")];
                 const defaultVal = getAttr(Game, k);
-                if (el.classList.contains("percent"))
-                    el.valueAsNumber = getAttr(Game, k) * max;
-                else
-                    el.valueAsNumber = getAttr(Game, k);
+                el.valueAsNumber = getAttr(Game, k) * (el.classList.contains("percent") ? max : 1);
                 const funcs = (el.dataset.funcs ?? "").split(",");
                 el.addEventListener("change", () => {
                     if (isNaN(el.valueAsNumber)) {
@@ -1071,17 +1064,15 @@ function handleSettings() {
             }
         }
         else if (el instanceof HTMLSelectElement) {
-            if (el.classList.contains("ease")) {
-                el.value = getAttr(Game, k);
-                const defaultVal = el.value;
-                const funcs = (el.dataset.funcs ?? "").split(",");
-                el.addEventListener("change", () => {
-                    UpdateSettingsBuffer(k, { value: el.value, el: el, funcs: funcs });
-                });
-                RejectSettingsBuffer.Connect(() => {
-                    el.value = getAttr(Game, k) ?? defaultVal;
-                });
-            }
+            el.value = getAttr(Game, k);
+            const defaultVal = el.value;
+            const funcs = (el.dataset.funcs ?? "").split(",");
+            el.addEventListener("change", () => {
+                UpdateSettingsBuffer(k, { value: el.value, el: el, funcs: funcs });
+            });
+            RejectSettingsBuffer.Connect(() => {
+                el.value = getAttr(Game, k) ?? defaultVal;
+            });
         }
     }
 }
@@ -1125,9 +1116,6 @@ class Level {
     levelIndex;
     get LevelNumber() {
         return (this.levelIndex ?? Levels.indexOf(this)) + 1;
-    }
-    set LevelNumber(i) {
-        this.levelIndex = i - 1;
     }
     Name;
     speed;
@@ -1196,9 +1184,7 @@ class BlockInstance extends Block {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                if (Game.Data[y + oY] === undefined || Game.Data[0][x + oX] === undefined)
-                    return false;
-                if (Game.Data[y + oY][x + oX] !== 0)
+                if (Game.Data[y + oY] === undefined || Game.Data[0][x + oX] === undefined || Game.Data[y + oY][x + oX] !== 0)
                     return false;
             }
         }
@@ -1211,6 +1197,9 @@ class BlockInstance extends Block {
     }
     dropping = false;
     isFake = false;
+    get IsClone() {
+        return this.isFake;
+    }
     Clone() {
         const clone = new BlockInstance(this.toBlock());
         clone.isFake = true;
@@ -1327,8 +1316,6 @@ class BlockInstance extends Block {
         return success();
     }
     static Draw(block, canvas, x, y, drawColor, outline, width, height) {
-        if (!block.isFake)
-            return;
         block._draw(canvas, x, y, drawColor, outline, width, height);
     }
     _draw(canvas = Game.BlockCanvas, x = this._x, y = this._y, drawColor = false, outline = false, width = 1, height = 1) {
@@ -1349,7 +1336,7 @@ class BlockInstance extends Block {
         }
     }
     Draw(canvas = Game.BlockCanvas) {
-        if (!this.IsValidPosition())
+        if (!this.IsValidPosition() || this.isFake)
             return;
         if (canvas === Game.BlockCanvas)
             canvas.ClearCanvas();
@@ -1682,7 +1669,7 @@ async function handleKeypress(event) {
             default: return;
         }
     }
-    if (Game.Paused && event.key !== "Escape" || Game.LockMovement)
+    if ((Game.Paused && event.key !== "Escape") || Game.LockMovement)
         return;
     switch (event.key) {
         case Game.KeyBinds.Left:
@@ -1713,7 +1700,7 @@ async function handleKeypress(event) {
         case "Escape":
             Game.TogglePause();
             break;
-        default: return console.log(event.key);
+        default: return;
     }
     event.preventDefault();
 }
@@ -1754,16 +1741,6 @@ document.getElementById("pause-resume")?.addEventListener("click", () => {
 document.getElementById("pause-restart")?.addEventListener("click", () => {
     Game.Reset();
     Game.StartGame();
-});
-document.getElementById("pause-mods")?.addEventListener("click", () => {
-    if (document.querySelector(".modal.active"))
-        return;
-    document.getElementById("mods")?.classList.add("active");
-    updateSelectionButtons();
-});
-document.getElementById("mods-back")?.addEventListener("click", () => {
-    document.getElementById("mods")?.classList.remove("active");
-    updateSelectionButtons();
 });
 document.getElementById("pause-help")?.addEventListener("click", () => {
     if (document.querySelector(".modal.active"))
