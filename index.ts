@@ -169,7 +169,8 @@ class InfiniteLevelArray extends InfiniteArray<Level> {
     override get(index:number) : Level {
         if (new NumberRange(0,this.length-1).inRange(index))
             return this.data[index];
-        return this.data[this.length-1].Clone(index);
+        this.data[index] = this.data[this.length-1].Clone(index);
+        return this.data[index];
     }
 }
 
@@ -238,12 +239,12 @@ namespace Enum {
         static readonly Hard:number = 2; // Hard drop base point value
         static readonly Clears:InfiniteArray<number> = new InfiniteArray([100,300,500,800]); // Base point values for 1, 2, 3, & 4 line clears respectively
     }
-    export type ModeOperationFunction = (initialValue:number,modifyingValue:number)=>number; // Type allowing custom functions to be used for mode operations (eg. on levels' speeds)
+    export type ModeOperationFunction = (index:number,initialValue:number,modifyingValue:number)=>number; // Type allowing custom functions to be used for mode operations (eg. on levels' speeds)
     // Define default operations
     export class ModeOperation {
-        static readonly Set:ModeOperationFunction = (x:number,y:number)=>y; // x => y
-        static readonly Add:ModeOperationFunction = (x:number,y:number)=>x+y; // x => x+y
-        static readonly Multiply:ModeOperationFunction = (x:number,y:number)=>x*y; // x => x*y
+        static readonly Set:ModeOperationFunction = (i:number,x:number,y:number)=>y; // x => y
+        static readonly Add:ModeOperationFunction = (i:number,x:number,y:number)=>x+y; // x => x+y
+        static readonly Multiply:ModeOperationFunction = (i:number,x:number,y:number)=>x*y; // x => x*y
     }
     export enum GridMode { BG, Grid, Both }
     export enum Operation { Addition, Subtraction, Multiplication, Division }
@@ -255,6 +256,23 @@ namespace Enum {
 
 // Organize utility functions via a 'Utils' prefix
 class Utils {
+    static RoundNumber(x:number,d:number) {
+        return Math.round(x*(10**d))/(10**d);
+    }
+    static ShortenNumber(x:number) : string {
+        const suffixes = [
+            { Range: new NumberRange(0,1e3-1), Suffix: "" },
+            { Range: new NumberRange(1e3,1e6-1), Suffix: "K" },
+            { Range: new NumberRange(1e6,1e9-1), Suffix: "M" },
+            { Range: new NumberRange(1e9,1e12-1), Suffix: "B" },
+            { Range: new NumberRange(1e12,1e15-1), Suffix: "T" },
+            { Range: new NumberRange(1e15,Infinity), Suffix: "Q" }
+        ];
+        for (const v of suffixes)
+            if (v.Range.inRange(Math.abs(x)))
+                return `${Utils.RoundNumber(x/(v.Range.Min > 0? v.Range.Min : 1),2)}${v.Suffix}`;
+        return x.toString();
+    }
     // Perform the operation `operation` on `n0` and `n1`, with the result wrapping around to `overflow` or `underflow` if it's too small or too large, respectively
     static OverflowOperate(n0:number, n1:number, underflow:number, overflow:number, operation:Enum.Operation|string=Enum.Operation.Addition) : number {
         if (typeof operation === "string") operation = Enum.OperationFromString(operation);
@@ -441,13 +459,13 @@ class Game {
     static loadHighScore() : void {
         let highscore:string|null = localStorage.getItem("HighScore");
         Game.highScore = highscore? parseInt(highscore) : 0;
-        highScoreText.textContent = Game.highScore.toString();
+        highScoreText.textContent = Utils.ShortenNumber(Game.highScore);
     }
     // Update the text of all scoreboard info elements
     private static drawScoreText() : void {
         levelText.textContent = Game.LevelNumber.toString();
-        scoreText.textContent = Game.Score.toString();
-        lineClearRelText.textContent = (Game.Level.ClearGate-Game.linesCleared).toString()+" line(s)";
+        scoreText.textContent = Utils.ShortenNumber(Game.Score);
+        lineClearRelText.textContent = (Game.NextLevel.ClearGate-Game.linesCleared).toString()+" line(s)";
         bounceAnim(document.getElementById("score-box") as HTMLElement);
     }
     private static linesCleared:number = 0; // Total lines cleared in a run (used for tracking when to go up to the next level)
@@ -468,7 +486,7 @@ class Game {
     static set HighScore(score:number) {
         Game.highScore = Math.max(score,Game.highScore);
         localStorage.setItem("HighScore",Game.highScore.toString());
-        highScoreText.textContent = Game.highScore.toString();
+        highScoreText.textContent = Utils.ShortenNumber(Game.highScore);
         newHighScoreBadge.classList.remove("new-highscore");
     }
     private static score:number = 0;
@@ -479,13 +497,13 @@ class Game {
         Game.drawScoreText();
         // Update highscore and show the new best badge if it's a PB, else ensure the badge is hidden and the highscore field displays the highscore
         if (Game.score > Game.highScore) {
-            highScoreText.textContent = Game.score.toString();
+            highScoreText.textContent = Utils.ShortenNumber(Game.score);
             if (!newHighScoreBadge.classList.contains("new-highscore")) {
                 newHighScoreBadge.classList.add("new-highscore");
                 SFX.newbest.play();
             }
         } else {
-            highScoreText.textContent = (Game.HighScore ?? 0).toString();
+            highScoreText.textContent = Utils.ShortenNumber(Game.HighScore ?? 0);
             newHighScoreBadge.classList.remove("new-highscore");
         }
     }
@@ -539,19 +557,19 @@ class Game {
         return Game.LevelIndex+1; // 1-based index of the current level
     }
     private static get Level() : Level {
-        return Levels.get(this.LevelIndex);
+        return Levels.get(Game.LevelIndex);
     }
     private static get LastLevel() : Level {
-        return Levels.get(this.LevelIndex-1); // Returns the previous level
+        return Levels.get(Game.LevelIndex-1); // Returns the previous level
     }
     private static get NextLevel() : Level {
-        return Levels.get(this.LevelIndex+1);
+        return Levels.get(Game.LevelIndex+1);
     }
     // Play the levelup sound (if applicable) and update level index/speed (and visuals)
     private static set Level(level:number) {
-        if (level > this.LevelIndex) SFX.levelup.play();
-        this.LevelIndex = level;
-        this.LevelSpeed = this.Level.Speed;
+        if (level > Game.LevelIndex) SFX.levelup.play();
+        Game.LevelIndex = level;
+        Game.LevelSpeed = Game.Level.Speed;
         Game.drawScoreText();
     }
     static get Running() : boolean {
@@ -1159,13 +1177,13 @@ const Levels:InfiniteLevelArray = new InfiniteLevelArray([]); // Push levels lat
 // Class representing a level, with a name (so duplicate levels can still be correctly detected in `Levels`), and the ability to modify the speed, total line clear gate, and score multiplier
 class Level {
     // Default clearGate function simply makes the gate 10 line clears each level (it's not relative so this simple math function is needed)
-    constructor(name:string, speed:number, clearGate:()=>number=()=>10*(this.LevelNumber-1), speedMode:Enum.ModeOperationFunction=Enum.ModeOperation.Multiply, speedRange:NumberRange=NumberRange.infinite, scoreMultiplier?:(index:number)=>number) {
+    constructor(name:string, speed:number, clearGate:(LevelNumber:number)=>number=(LevelNumber:number)=>10*(LevelNumber-1), speedMode:Enum.ModeOperationFunction=Enum.ModeOperation.Multiply, speedRange:NumberRange=NumberRange.infinite, scoreMultiplier:(index:number)=>number=(index:number)=>1+(index-1)/100) {
         this.Name = name;
         this.speed = speed;
         this.clearGate = clearGate;
         this.SpeedMode = speedMode;
         this.SpeedRange = speedRange;
-        if (scoreMultiplier) this.scoreMultiplier = scoreMultiplier;
+        this.scoreMultiplier = scoreMultiplier;
     }
     // Clone a level with a specified index. Needed since an element's index cannot be naturally found via indexOf() in an InfiniteArray after reaching past it's real length
     Clone(index:number) : Level {
@@ -1180,27 +1198,28 @@ class Level {
     }
     readonly Name:string;
     private readonly speed:number;
-    private readonly clearGate:()=>number;
-    private readonly scoreMultiplier:(index:number)=>number = function(index:number) : number {
-        return 1+(index/100);
-    };
+    private readonly clearGate:(LevelNumber:number)=>number;
+    private readonly scoreMultiplier:(index:number)=>number;
     get ScoreMultiplier() : number {
-        return this.scoreMultiplier(this.LevelNumber-1);
+        return this.scoreMultiplier(this.LevelNumber);
     }
     readonly SpeedMode:Enum.ModeOperationFunction;
     readonly SpeedRange:NumberRange;
     get Speed() : number {
-        return Utils.clamp(this.SpeedMode(Game.LevelSpeed,this.speed),this.SpeedRange.Min,this.SpeedRange.Max);
+        return Utils.clamp(this.SpeedMode(this.LevelNumber,Game.LevelSpeed,this.speed),this.SpeedRange.Min,this.SpeedRange.Max);
     }
     get ClearGate() : number {
-        return this.clearGate();
+        return this.clearGate(this.LevelNumber);
+    }
+    toString() : string {
+        return `Level ${this.LevelNumber}: ${this.Speed}x Speed, ${this.ScoreMultiplier}x Score, ${this.ClearGate} Line(s)`;
     }
 }
 
 // Infinite levels, since level 2 exponentially increases speed based on current LevelNumber
 Levels.push(
-    new Level("1",1.0,()=>10,Enum.ModeOperation.Set),
-    new Level("2..",1.15,undefined,(x:number,y:number)=>((y+2)^Game.LevelNumber)/100)
+    new Level("1",1.0,undefined,Enum.ModeOperation.Set),
+    new Level("2..",1.15,undefined,(i:number,x:number,y:number)=>(y)*(1+(.01*i)))
 );
 
 // Represents a block and its shapes/color
@@ -1950,7 +1969,7 @@ const keyTranslationMap:Record<string,string> = {
     "<": "",
     ">": "",
     CapsLock: "",
-    "^": "",
+    "**": "",
     ":": "",
     ",": "",
     Control: "",

@@ -151,7 +151,8 @@ class InfiniteLevelArray extends InfiniteArray {
     get(index) {
         if (new NumberRange(0, this.length - 1).inRange(index))
             return this.data[index];
-        return this.data[this.length - 1].Clone(index);
+        this.data[index] = this.data[this.length - 1].Clone(index);
+        return this.data[index];
     }
 }
 class BagArray extends ArrayWrapper {
@@ -209,9 +210,9 @@ var Enum;
     }
     Enum.BaseScores = BaseScores;
     class ModeOperation {
-        static Set = (x, y) => y;
-        static Add = (x, y) => x + y;
-        static Multiply = (x, y) => x * y;
+        static Set = (i, x, y) => y;
+        static Add = (i, x, y) => x + y;
+        static Multiply = (i, x, y) => x * y;
     }
     Enum.ModeOperation = ModeOperation;
     let GridMode;
@@ -234,6 +235,23 @@ var Enum;
     Enum.OperationFromString = OperationFromString;
 })(Enum || (Enum = {}));
 class Utils {
+    static RoundNumber(x, d) {
+        return Math.round(x * (10 ** d)) / (10 ** d);
+    }
+    static ShortenNumber(x) {
+        const suffixes = [
+            { Range: new NumberRange(0, 1e3 - 1), Suffix: "" },
+            { Range: new NumberRange(1e3, 1e6 - 1), Suffix: "K" },
+            { Range: new NumberRange(1e6, 1e9 - 1), Suffix: "M" },
+            { Range: new NumberRange(1e9, 1e12 - 1), Suffix: "B" },
+            { Range: new NumberRange(1e12, 1e15 - 1), Suffix: "T" },
+            { Range: new NumberRange(1e15, Infinity), Suffix: "Q" }
+        ];
+        for (const v of suffixes)
+            if (v.Range.inRange(Math.abs(x)))
+                return `${Utils.RoundNumber(x / (v.Range.Min > 0 ? v.Range.Min : 1), 2)}${v.Suffix}`;
+        return x.toString();
+    }
     static OverflowOperate(n0, n1, underflow, overflow, operation = Enum.Operation.Addition) {
         if (typeof operation === "string")
             operation = Enum.OperationFromString(operation);
@@ -397,12 +415,12 @@ class Game {
     static loadHighScore() {
         let highscore = localStorage.getItem("HighScore");
         Game.highScore = highscore ? parseInt(highscore) : 0;
-        highScoreText.textContent = Game.highScore.toString();
+        highScoreText.textContent = Utils.ShortenNumber(Game.highScore);
     }
     static drawScoreText() {
         levelText.textContent = Game.LevelNumber.toString();
-        scoreText.textContent = Game.Score.toString();
-        lineClearRelText.textContent = (Game.Level.ClearGate - Game.linesCleared).toString() + " line(s)";
+        scoreText.textContent = Utils.ShortenNumber(Game.Score);
+        lineClearRelText.textContent = (Game.NextLevel.ClearGate - Game.linesCleared).toString() + " line(s)";
         bounceAnim(document.getElementById("score-box"));
     }
     static linesCleared = 0;
@@ -422,7 +440,7 @@ class Game {
     static set HighScore(score) {
         Game.highScore = Math.max(score, Game.highScore);
         localStorage.setItem("HighScore", Game.highScore.toString());
-        highScoreText.textContent = Game.highScore.toString();
+        highScoreText.textContent = Utils.ShortenNumber(Game.highScore);
         newHighScoreBadge.classList.remove("new-highscore");
     }
     static score = 0;
@@ -432,14 +450,14 @@ class Game {
             Game.Level = Game.LevelIndex + 1;
         Game.drawScoreText();
         if (Game.score > Game.highScore) {
-            highScoreText.textContent = Game.score.toString();
+            highScoreText.textContent = Utils.ShortenNumber(Game.score);
             if (!newHighScoreBadge.classList.contains("new-highscore")) {
                 newHighScoreBadge.classList.add("new-highscore");
                 SFX.newbest.play();
             }
         }
         else {
-            highScoreText.textContent = (Game.HighScore ?? 0).toString();
+            highScoreText.textContent = Utils.ShortenNumber(Game.HighScore ?? 0);
             newHighScoreBadge.classList.remove("new-highscore");
         }
     }
@@ -492,19 +510,19 @@ class Game {
         return Game.LevelIndex + 1;
     }
     static get Level() {
-        return Levels.get(this.LevelIndex);
+        return Levels.get(Game.LevelIndex);
     }
     static get LastLevel() {
-        return Levels.get(this.LevelIndex - 1);
+        return Levels.get(Game.LevelIndex - 1);
     }
     static get NextLevel() {
-        return Levels.get(this.LevelIndex + 1);
+        return Levels.get(Game.LevelIndex + 1);
     }
     static set Level(level) {
-        if (level > this.LevelIndex)
+        if (level > Game.LevelIndex)
             SFX.levelup.play();
-        this.LevelIndex = level;
-        this.LevelSpeed = this.Level.Speed;
+        Game.LevelIndex = level;
+        Game.LevelSpeed = Game.Level.Speed;
         Game.drawScoreText();
     }
     static get Running() {
@@ -1099,14 +1117,13 @@ class NumberRange {
 }
 const Levels = new InfiniteLevelArray([]);
 class Level {
-    constructor(name, speed, clearGate = () => 10 * (this.LevelNumber - 1), speedMode = Enum.ModeOperation.Multiply, speedRange = NumberRange.infinite, scoreMultiplier) {
+    constructor(name, speed, clearGate = (LevelNumber) => 10 * (LevelNumber - 1), speedMode = Enum.ModeOperation.Multiply, speedRange = NumberRange.infinite, scoreMultiplier = (index) => 1 + (index - 1) / 100) {
         this.Name = name;
         this.speed = speed;
         this.clearGate = clearGate;
         this.SpeedMode = speedMode;
         this.SpeedRange = speedRange;
-        if (scoreMultiplier)
-            this.scoreMultiplier = scoreMultiplier;
+        this.scoreMultiplier = scoreMultiplier;
     }
     Clone(index) {
         const lvl = new Level(this.Name, this.Speed, this.clearGate, this.SpeedMode, this.SpeedRange, this.scoreMultiplier);
@@ -1120,22 +1137,23 @@ class Level {
     Name;
     speed;
     clearGate;
-    scoreMultiplier = function (index) {
-        return 1 + (index / 100);
-    };
+    scoreMultiplier;
     get ScoreMultiplier() {
-        return this.scoreMultiplier(this.LevelNumber - 1);
+        return this.scoreMultiplier(this.LevelNumber);
     }
     SpeedMode;
     SpeedRange;
     get Speed() {
-        return Utils.clamp(this.SpeedMode(Game.LevelSpeed, this.speed), this.SpeedRange.Min, this.SpeedRange.Max);
+        return Utils.clamp(this.SpeedMode(this.LevelNumber, Game.LevelSpeed, this.speed), this.SpeedRange.Min, this.SpeedRange.Max);
     }
     get ClearGate() {
-        return this.clearGate();
+        return this.clearGate(this.LevelNumber);
+    }
+    toString() {
+        return `Level ${this.LevelNumber}: ${this.Speed}x Speed, ${this.ScoreMultiplier}x Score, ${this.ClearGate} Line(s)`;
     }
 }
-Levels.push(new Level("1", 1.0, () => 10, Enum.ModeOperation.Set), new Level("2..", 1.15, undefined, (x, y) => ((y + 2) ^ Game.LevelNumber) / 100));
+Levels.push(new Level("1", 1.0, undefined, Enum.ModeOperation.Set), new Level("2..", 1.15, undefined, (i, x, y) => (y) * (1 + (.01 * i))));
 class Block {
     constructor(blockShapes, blockData, symbol) {
         if (blockShapes.length < 4)
@@ -1850,7 +1868,7 @@ const keyTranslationMap = {
     "<": "",
     ">": "",
     CapsLock: "",
-    "^": "",
+    "**": "",
     ":": "",
     ",": "",
     Control: "",
