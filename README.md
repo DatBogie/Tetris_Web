@@ -6,7 +6,7 @@ APCSP 2026 Create Task Project
 **Where to Play**  
 [datbogie.org](https://datbogie.org/Bogetris) \| [sites.google.com](https://sites.google.com/view/datbogie/github-pages/bogetris)<strong style="color: var(--red);">\*</strong>
 
-<small style="color: var(--red);">\*</small><small style="color: var(--overlay1);">_Google Sites allows Bogetris to be played unblocked, **without saving**._</small>
+<small style="color: var(--red);">\*</small><small style="color: var(--subtext0);">_Google Sites allows Bogetris to be played unblocked, **without saving**._</small>
 
 ## License
 
