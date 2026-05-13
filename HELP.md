@@ -33,4 +33,4 @@ After a block cannot move down anymore, all lines will be cleared, scoring you p
 
 &nbsp;
 
-<small style="color: var(--red);">\*</small><small style="color: var(--overlay-0);">*All controls are remappable in Settings > Keybinds!*</small>
+<small style="color: var(--red);">\*</small><small style="color: var(--overlay0);">*All controls are remappable in Settings > Keybinds!*</small>
