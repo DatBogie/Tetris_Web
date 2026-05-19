@@ -455,6 +455,13 @@ class Game {
     static LockMovement:boolean = false; // Prevent the current block from being moved
     static ResetHighScore:boolean = false;
     static ResetSettings:boolean = false;
+    // Define canvases upon which blocks and other game elements are rendered
+    static readonly BgCanvas:Canvas2D = new Canvas2D(document.getElementById("bg") as HTMLCanvasElement);
+    static readonly GameCanvas:Canvas2D = new Canvas2D(document.getElementById("game") as HTMLCanvasElement);
+    static readonly BlockCanvas:Canvas2D = new Canvas2D(document.getElementById("block") as HTMLCanvasElement);
+    static readonly StaleCanvas:Canvas2D = new Canvas2D(document.getElementById("stale") as HTMLCanvasElement);
+    static readonly HoldCanvas:Canvas2D = new Canvas2D(document.getElementById("hold") as HTMLCanvasElement);
+    static readonly NextCanvas:Canvas2D = new Canvas2D(document.getElementById("next") as HTMLCanvasElement);
     // Load highscore from localStorage
     static loadHighScore() : void {
         let highscore:string|null = localStorage.getItem("HighScore");
@@ -536,11 +543,17 @@ class Game {
     static Anims:boolean = true; // Global animation toggle
     static Physics:boolean = false; // When enabled, blocks won't keep their shape after falling, ensuring that no block pixel will ever be floating (gravity)
     static KeyBinds:Record<string,string> = {};
-    static get PixelSize() : number {
-        return Math.min(Game.GameCanvas.Canvas.width/Game.Width,Game.GameCanvas.Canvas.height/Game.Height); // Get the maximum size of a pixel based on screen and game dimensions
+    private static pixelSize(gameWidth:number=Game.Width,gameHeight:number=Game.Height,canvasWidth:number=Game.GameCanvas.Canvas.width,canvasHeight:number=Game.GameCanvas.Canvas.height) : number {
+        return Math.min(canvasWidth/gameWidth,canvasHeight/gameHeight);
     }
+    static get PixelSize() : number {
+        return Game.pixelSize(); // Get the maximum size of a pixel based on screen and game dimensions
+    }
+    static BasePixelSize:number;
     static Width:number = 10;
     static Height:number = 20;
+    static readonly BaseWidth:number = Game.Width;
+    static readonly BaseHeight:number = Game.Height;
     static SpeedMul:number = 1.0;
     static readonly BaseSpeedMs:number = 1000.0; // Base time (ms) for a block to drop 1 row
     static GhostBlockOpacity:number = 0.25; // The ghost block appears at the lowest possible position of the current block (where it'd end up upon hard dropping)
@@ -548,13 +561,6 @@ class Game {
     static RawBlockOpacity:number = 0.0; // The AccuBlock shows exactly where the current block actually is, ignoring all animations (useful when `AnimMoveTime` is very high)
     static Paused:boolean = true; // Game starts paused on the main menu screen
     static CurrentBlock?:BlockInstance;
-    // Define canvases upon which blocks and other game elements are rendered
-    static readonly BgCanvas:Canvas2D = new Canvas2D(document.getElementById("bg") as HTMLCanvasElement);
-    static readonly GameCanvas:Canvas2D = new Canvas2D(document.getElementById("game") as HTMLCanvasElement);
-    static readonly BlockCanvas:Canvas2D = new Canvas2D(document.getElementById("block") as HTMLCanvasElement);
-    static readonly StaleCanvas:Canvas2D = new Canvas2D(document.getElementById("stale") as HTMLCanvasElement);
-    static readonly HoldCanvas:Canvas2D = new Canvas2D(document.getElementById("hold") as HTMLCanvasElement);
-    static readonly NextCanvas:Canvas2D = new Canvas2D(document.getElementById("next") as HTMLCanvasElement);
     private static LevelIndex:number; // Index of the current level (0-based)
     static get LevelNumber() : number {
         return Game.LevelIndex+1; // 1-based index of the current level
@@ -595,10 +601,10 @@ class Game {
         return Game._centerPoint(Game.GameCanvas);
     }
     // Get the center of the passed canvas based on pixels being `Game.PixelSize`
-    static CanvasOffset(canvas:Canvas2D) : Point {
+    static CanvasOffset(canvas:Canvas2D,width:number=Game.Width,height:number=Game.Height,pxsz:number=Game.PixelSize) : Point {
         return new Point(
-            Game._centerPoint(canvas).X-(Game.Width*Game.PixelSize)/2,
-            Game._centerPoint(canvas).Y-(Game.Height*Game.PixelSize)/2,
+            Game._centerPoint(canvas).X-(width*pxsz)/2,
+            Game._centerPoint(canvas).Y-(height*pxsz)/2,
         );
     }
     // Get the center of the `GameCanvas` based on pixels being `Game.PixelSize`
@@ -621,7 +627,7 @@ class Game {
         Game.Level = 0;
         Game.linesCleared = 0;
         Game.LevelSpeed = 1;
-        Game.LevelSpeed = this.Level.Speed;
+        Game.LevelSpeed = Game.Level.Speed;
         Game.Score = 0;
         if (!Game.GridDrawn)
             Game.DrawGrid();
@@ -638,7 +644,7 @@ class Game {
         }
     }
     static ReloadPage = ()=>window.location.reload(); // Needed alias due to how the settings system works
-    // Reschedule GameTick thread when there's nothing more to do this tick
+    // Reschedule GameTick thread when there's nothing more to do Game tick
     private static rgt() : void {
         Game._thread_id = setTimeout(Game.GameTick,Game.Speed);
     }
@@ -765,7 +771,7 @@ class Game {
     }
     // Erase a line of blocks from the game state
     static async EraseLine(self:BlockInstance|Game, y?:number) : Promise<void> {
-        if (this !== self && self !== Game.CurrentBlock) return;
+        if (Game !== self && self !== Game.CurrentBlock) return;
         if (self instanceof BlockInstance)
             y??=self.Y;
         else
@@ -785,10 +791,10 @@ class Game {
         const block:BlockInstance = new BlockInstance(Game.heldBlock as Block).Clone();
         let [lY, hY]:number[] = [block.LowestPoint.Y, block.HighestPoint.Y];
         if (lY === hY) hY = 0;
-        BlockInstance.Draw(block,Game.HoldCanvas,Game.Width/2-block.CurrentShape[0].length/2,(Game.Height/2)-(lY-hY),true); // Draw hold block
+        BlockInstance.Draw(block,Game.HoldCanvas,Game.BaseWidth/2-block.CurrentShape[0].length/2,(Game.BaseHeight/2)-(lY-hY),true); // Draw hold block
         if (!Game.DisableGrid) {
             Game.HoldCanvas.Context.strokeStyle = "#18192680";
-            BlockInstance.Draw(block,Game.HoldCanvas,Game.Width/2-block.CurrentShape[0].length/2,(Game.Height/2)-(lY-hY),true,true);
+            BlockInstance.Draw(block,Game.HoldCanvas,Game.BaseWidth/2-block.CurrentShape[0].length/2,(Game.BaseHeight/2)-(lY-hY),true,true);
         }
     }
     // Draw the next 3 blocks in the NextCanvas
@@ -802,7 +808,7 @@ class Game {
             const block:BlockInstance = new BlockInstance(blockShape).Clone();
             let hY:number = block.HighestPoint.Y;
             const prevBlock:BlockInstance|undefined = Game.blockFeed.get(i-1) && positions[i-1]? new BlockInstance(Game.blockFeed.get(i-1) as Block) : undefined;
-            const [pX, pY]:number[] = [Game.Width/2-block.CurrentShape[0].length/2,(positions[i-1]?.Y ?? 5)+(prevBlock?.LowestPoint.Y ?? -1)+1-hY+1];
+            const [pX, pY]:number[] = [Game.BaseWidth/2-block.CurrentShape[0].length/2,(positions[i-1]?.Y ?? 5)+(prevBlock?.LowestPoint.Y ?? -1)+1-hY+1];
             positions[i] = new Point(pX,pY);
             BlockInstance.Draw(block,Game.NextCanvas,pX,pY,true); // Draw next block
             if (!Game.DisableGrid) {
@@ -905,7 +911,7 @@ class Game {
             if (el.id === "settings")
                 RejectSettingsBuffer.Fire();
         });
-        const wasPaused:boolean = Game.Paused; // Whether or not the game was previously paused at the time of calling this function
+        const wasPaused:boolean = Game.Paused; // Whether or not the game was previously paused at the time of calling Game function
         Game.Paused = paused === undefined? !Game.Paused : paused;
         if (Game.Paused)
             document.getElementById("pause-ind")?.classList.add("paused");
@@ -985,6 +991,7 @@ const SettingsBuffer:Map<string,Enum.bufferData> = new Map<string,Enum.bufferDat
 const settingsTitle:HTMLDivElement = document.getElementById("settings-title") as HTMLDivElement;
 // Load (or reset) settings (and other data) from localStorage and display their saved values
 function LoadSettings() : void {
+    Game.BasePixelSize = Game.PixelSize;
     // Reset highscore if we find the ResetHighScore setting was checked
     if (localStorage.getItem("SETTINGS/ResetHighScore")) {
         localStorage.removeItem("SETTINGS/ResetHighScore"); // Remove the ResetHighScore setting from localStorage to ensure it doesn't get unintentionally reset next time
@@ -1415,8 +1422,9 @@ class BlockInstance extends Block {
         for (const [oY, row] of this.CurrentShape.entries()) {
             for (const [oX, col] of row.entries()) {
                 if (col === 0) continue;
+                const [pxsz,gWidth,gHeight] = (canvas === Game.HoldCanvas || canvas === Game.NextCanvas)? [Game.BasePixelSize,Game.BaseWidth,Game.BaseHeight] : [Game.PixelSize,Game.Width,Game.Height];
                 // Center anchor pixel
-                let [_x,_y,_w,_h]:number[] = [Game.CanvasOffset(canvas).X+x*Game.PixelSize+oX*Game.PixelSize,Game.CanvasOffset(canvas).Y+y*Game.PixelSize+oY*Game.PixelSize,Game.PixelSize*width*Game.BlockScale,Game.PixelSize*height*Game.BlockScale]; // Convert game logic pixels to real pixels, filling 1 game pixel per width/height
+                let [_x,_y,_w,_h]:number[] = [Game.CanvasOffset(canvas,gWidth,gHeight,pxsz).X+x*pxsz+oX*pxsz,Game.CanvasOffset(canvas,gWidth,gHeight,pxsz).Y+y*pxsz+oY*pxsz,pxsz*width*Game.BlockScale,pxsz*height*Game.BlockScale]; // Convert game logic pixels to real pixels, filling 1 game pixel per width/height
                 _x-=(_w-_w/Game.BlockScale)/2; _y-=(_h-_h/Game.BlockScale)/2;
                 if (!outline)
                     canvas.Context.fillRect(_x,_y,_w,_h);

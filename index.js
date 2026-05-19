@@ -412,6 +412,12 @@ class Game {
     static LockMovement = false;
     static ResetHighScore = false;
     static ResetSettings = false;
+    static BgCanvas = new Canvas2D(document.getElementById("bg"));
+    static GameCanvas = new Canvas2D(document.getElementById("game"));
+    static BlockCanvas = new Canvas2D(document.getElementById("block"));
+    static StaleCanvas = new Canvas2D(document.getElementById("stale"));
+    static HoldCanvas = new Canvas2D(document.getElementById("hold"));
+    static NextCanvas = new Canvas2D(document.getElementById("next"));
     static loadHighScore() {
         let highscore = localStorage.getItem("HighScore");
         Game.highScore = highscore ? parseInt(highscore) : 0;
@@ -490,11 +496,17 @@ class Game {
     static Anims = true;
     static Physics = false;
     static KeyBinds = {};
-    static get PixelSize() {
-        return Math.min(Game.GameCanvas.Canvas.width / Game.Width, Game.GameCanvas.Canvas.height / Game.Height);
+    static pixelSize(gameWidth = Game.Width, gameHeight = Game.Height, canvasWidth = Game.GameCanvas.Canvas.width, canvasHeight = Game.GameCanvas.Canvas.height) {
+        return Math.min(canvasWidth / gameWidth, canvasHeight / gameHeight);
     }
+    static get PixelSize() {
+        return Game.pixelSize();
+    }
+    static BasePixelSize;
     static Width = 10;
     static Height = 20;
+    static BaseWidth = Game.Width;
+    static BaseHeight = Game.Height;
     static SpeedMul = 1.0;
     static BaseSpeedMs = 1000.0;
     static GhostBlockOpacity = 0.25;
@@ -502,12 +514,6 @@ class Game {
     static RawBlockOpacity = 0.0;
     static Paused = true;
     static CurrentBlock;
-    static BgCanvas = new Canvas2D(document.getElementById("bg"));
-    static GameCanvas = new Canvas2D(document.getElementById("game"));
-    static BlockCanvas = new Canvas2D(document.getElementById("block"));
-    static StaleCanvas = new Canvas2D(document.getElementById("stale"));
-    static HoldCanvas = new Canvas2D(document.getElementById("hold"));
-    static NextCanvas = new Canvas2D(document.getElementById("next"));
     static LevelIndex;
     static get LevelNumber() {
         return Game.LevelIndex + 1;
@@ -542,8 +548,8 @@ class Game {
     static get CenterPoint() {
         return Game._centerPoint(Game.GameCanvas);
     }
-    static CanvasOffset(canvas) {
-        return new Point(Game._centerPoint(canvas).X - (Game.Width * Game.PixelSize) / 2, Game._centerPoint(canvas).Y - (Game.Height * Game.PixelSize) / 2);
+    static CanvasOffset(canvas, width = Game.Width, height = Game.Height, pxsz = Game.PixelSize) {
+        return new Point(Game._centerPoint(canvas).X - (width * pxsz) / 2, Game._centerPoint(canvas).Y - (height * pxsz) / 2);
     }
     static get GameOffset() {
         return Game.CanvasOffset(Game.GameCanvas);
@@ -564,7 +570,7 @@ class Game {
         Game.Level = 0;
         Game.linesCleared = 0;
         Game.LevelSpeed = 1;
-        Game.LevelSpeed = this.Level.Speed;
+        Game.LevelSpeed = Game.Level.Speed;
         Game.Score = 0;
         if (!Game.GridDrawn)
             Game.DrawGrid();
@@ -710,7 +716,7 @@ class Game {
         }
     }
     static async EraseLine(self, y) {
-        if (this !== self && self !== Game.CurrentBlock)
+        if (Game !== self && self !== Game.CurrentBlock)
             return;
         if (self instanceof BlockInstance)
             y ??= self.Y;
@@ -732,10 +738,10 @@ class Game {
         let [lY, hY] = [block.LowestPoint.Y, block.HighestPoint.Y];
         if (lY === hY)
             hY = 0;
-        BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true);
+        BlockInstance.Draw(block, Game.HoldCanvas, Game.BaseWidth / 2 - block.CurrentShape[0].length / 2, (Game.BaseHeight / 2) - (lY - hY), true);
         if (!Game.DisableGrid) {
             Game.HoldCanvas.Context.strokeStyle = "#18192680";
-            BlockInstance.Draw(block, Game.HoldCanvas, Game.Width / 2 - block.CurrentShape[0].length / 2, (Game.Height / 2) - (lY - hY), true, true);
+            BlockInstance.Draw(block, Game.HoldCanvas, Game.BaseWidth / 2 - block.CurrentShape[0].length / 2, (Game.BaseHeight / 2) - (lY - hY), true, true);
         }
     }
     static RedrawNextBlocks() {
@@ -750,7 +756,7 @@ class Game {
             const block = new BlockInstance(blockShape).Clone();
             let hY = block.HighestPoint.Y;
             const prevBlock = Game.blockFeed.get(i - 1) && positions[i - 1] ? new BlockInstance(Game.blockFeed.get(i - 1)) : undefined;
-            const [pX, pY] = [Game.Width / 2 - block.CurrentShape[0].length / 2, (positions[i - 1]?.Y ?? 5) + (prevBlock?.LowestPoint.Y ?? -1) + 1 - hY + 1];
+            const [pX, pY] = [Game.BaseWidth / 2 - block.CurrentShape[0].length / 2, (positions[i - 1]?.Y ?? 5) + (prevBlock?.LowestPoint.Y ?? -1) + 1 - hY + 1];
             positions[i] = new Point(pX, pY);
             BlockInstance.Draw(block, Game.NextCanvas, pX, pY, true);
             if (!Game.DisableGrid) {
@@ -935,6 +941,7 @@ const Settings = {
 const SettingsBuffer = new Map();
 const settingsTitle = document.getElementById("settings-title");
 function LoadSettings() {
+    Game.BasePixelSize = Game.PixelSize;
     if (localStorage.getItem("SETTINGS/ResetHighScore")) {
         localStorage.removeItem("SETTINGS/ResetHighScore");
         localStorage.removeItem("HighScore");
@@ -1346,7 +1353,8 @@ class BlockInstance extends Block {
             for (const [oX, col] of row.entries()) {
                 if (col === 0)
                     continue;
-                let [_x, _y, _w, _h] = [Game.CanvasOffset(canvas).X + x * Game.PixelSize + oX * Game.PixelSize, Game.CanvasOffset(canvas).Y + y * Game.PixelSize + oY * Game.PixelSize, Game.PixelSize * width * Game.BlockScale, Game.PixelSize * height * Game.BlockScale];
+                const [pxsz, gWidth, gHeight] = (canvas === Game.HoldCanvas || canvas === Game.NextCanvas) ? [Game.BasePixelSize, Game.BaseWidth, Game.BaseHeight] : [Game.PixelSize, Game.Width, Game.Height];
+                let [_x, _y, _w, _h] = [Game.CanvasOffset(canvas, gWidth, gHeight, pxsz).X + x * pxsz + oX * pxsz, Game.CanvasOffset(canvas, gWidth, gHeight, pxsz).Y + y * pxsz + oY * pxsz, pxsz * width * Game.BlockScale, pxsz * height * Game.BlockScale];
                 _x -= (_w - _w / Game.BlockScale) / 2;
                 _y -= (_h - _h / Game.BlockScale) / 2;
                 if (!outline)
